@@ -2,7 +2,7 @@
 
 2-D Frequency-Domain Finite-Difference (FDFD) forward modelling and Full-Waveform
 Inversion (FWI) for Ground-Penetrating Radar (GPR) — Python port of the MATLAB
-RFDFWI toolbox (Layek & Sengupta 2023).
+RFDFWI toolbox (Layek & Sengupta 2024).
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
@@ -100,9 +100,7 @@ Both must print PASS before trusting any results.
 
 ## References
 
-- Layek, M. K., & Sengupta, D. (2023). A new 9-point staggered-grid
-  finite-difference method for frequency-domain elastic full-waveform inversion.
-  *Geophysics*, 88(5).
+- Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite difference frequency domain full waveform inversion of GPR data: A guide for sedimentary architecture modeling. *Pure and Applied Geophysics*, 181, 2107–2130. https://doi.org/10.1007/s00024-024-03520-1
 - Hustedt, B., Operto, S., & Virieux, J. (2004). Mixed-grid and staggered-grid
   finite-difference methods for frequency-domain acoustic wave modelling.
   *Geophysical Journal International*, 157(3), 1269-1296.
