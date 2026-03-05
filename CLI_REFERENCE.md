@@ -1,3 +1,38 @@
+<!--
+================================================================================
+RFDFWI — Full-Waveform Inversion (FWI) of GPR Data  |  By Mrinal
+
+This documentation is part of a Python implementation for Full-Waveform
+Inversion (FWI) of Ground Penetrating Radar (GPR) data. FWI is a geophysical
+imaging technique used to reconstruct subsurface properties (electromagnetic
+permittivity and conductivity) by iteratively comparing modelled and observed
+data.
+
+References:
+  Lavoué et al. (2014); Layek & Sengupta (2019, 2021, & 2024)
+  Köhn, D., De Nil, D. and Rabbel, W. (2017) Tutorial: Introduction to
+  frequency domain modelling and FWI of georadar data with GERMAINE.
+  DOI: 10.13140/RG.2.2.29354.03523
+  ____________________________
+  Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite
+  difference frequency domain full waveform inversion of GPR data: A guide
+  for sedimentary architecture modeling. Pure and Applied Geophysics, 181,
+  2107–2130. https://doi.org/10.1007/s00024-024-03520-1
+
+Copyright © Mrinal Kanti Layek
+Original MATLAB written during PhD @ 2018–19:
+  Mrinal Kanti Layek, Senior Research Fellow (Geophysics)
+  Department of Geology and Geophysics, IIT Kharagpur – 721302, INDIA
+  layek.mk@gmail.com | https://www.researchgate.net/profile/Mrinal_Layek
+
+Python code written during Postdoc @ March 2026:
+  Dr. Mrinal Kanti Layek — Postdoctoral Researcher | 박사후 연구원
+  Geophysics & AI Lab, Department of Energy & Resources Engineering
+  Chonnam National University, Gwangju, Republic of Korea [61186]
+  지구물리 및 인공지능 연구실, 에너지자원공학과, 전남대학교, 광주광역시 [61186]
+  Email: layek.mk@gmail.com
+================================================================================
+-->
 # RFDFWI — Command-Line Reference
 
 All example scripts are run from the **project root** with the conda
@@ -20,7 +55,7 @@ cd D:\rfdfwi
 | `--ncpus N` | int | `1` | Parallel CPU workers for multi-source/frequency solves |
 | `--use-gpu` | flag | off | GPU acceleration via CuPy (experimental) |
 | `--stag1` | flag | **default** | stag1 9-point CFS-PML (Hustedt et al. 2004) |
-| `--stag2` | flag | off | stag2 9-point CFS-PML (Layek & Sengupta 2023) |
+| `--stag2` | flag | off | stag2 9-point CFS-PML (Layek & Sengupta 2024) |
 | `-v / --verbose` | flag | off | Print extra diagnostic information |
 
 > `--stag1` and `--stag2` are mutually exclusive; `--stag1` is the default.
@@ -336,7 +371,7 @@ python examples/run_inversion_example.py --stag2 --ncpus 15 \
 | Flag | Scheme | Reference |
 |---|---|---|
 | `--stag1` *(default)* | Parallel staggered grid | Hustedt et al. (2004), *GJI* |
-| `--stag2` | New staggered grid (recommended) | Layek & Sengupta (2023) |
+| `--stag2` | New staggered grid (recommended) | Layek & Sengupta (2024) |
 
 Both use a **9-point CFS-PML** formulation.
 PML parameters are set in the `pml` section of the YAML config:

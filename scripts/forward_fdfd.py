@@ -1,3 +1,36 @@
+# =============================================================================
+# RFDFWI — Full-Waveform Inversion (FWI) of GPR Data  |  By Mrinal
+#
+# This code is a Python implementation for Full-Waveform Inversion (FWI)
+# of Ground Penetrating Radar (GPR) data. FWI is a geophysical imaging
+# technique used to reconstruct subsurface properties (electromagnetic
+# permittivity and conductivity) by iteratively comparing modelled and
+# observed data.
+#
+# References:
+#   Lavoué et al. (2014); Layek & Sengupta (2019, 2021, & 2024)
+#   Köhn, D., De Nil, D. and Rabbel, W. (2017) Tutorial: Introduction to
+#   frequency domain modelling and FWI of georadar data with GERMAINE.
+#   DOI: 10.13140/RG.2.2.29354.03523
+#   ____________________________
+#   Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite
+#   difference frequency domain full waveform inversion of GPR data: A guide
+#   for sedimentary architecture modeling. Pure and Applied Geophysics, 181,
+#   2107–2130. https://doi.org/10.1007/s00024-024-03520-1
+#
+# Copyright © Mrinal Kanti Layek
+# Original MATLAB written during PhD @ 2018–19:
+#   Mrinal Kanti Layek, Senior Research Fellow (Geophysics)
+#   Department of Geology and Geophysics, IIT Kharagpur – 721302, INDIA
+#   layek.mk@gmail.com | https://www.researchgate.net/profile/Mrinal_Layek
+#
+# Python code written during Postdoc @ March 2026:
+#   Dr. Mrinal Kanti Layek — Postdoctoral Researcher | 박사후 연구원
+#   Geophysics & AI Lab, Department of Energy & Resources Engineering
+#   Chonnam National University, Gwangju, Republic of Korea [61186]
+#   지구물리 및 인공지능 연구실, 에너지자원공학과, 전남대학교, 광주광역시 [61186]
+#   Email: layek.mk@gmail.com
+# =============================================================================
 """
 2D FDFD forward solver for GPR (TM mode, Ez).
 
@@ -5,7 +38,7 @@ Implements two 9-point CFS-PML staggered-grid Helmholtz formulations:
 
   stag1 — Hustedt et al. (2004) parallel staggered grid
            (port of imp_A_TE_9p_cfs_PML_stag1_para.m)
-  stag2 — Layek & Sengupta (2023) new staggered grid
+  stag2 — Layek & Sengupta (2024) new staggered grid
            (port of imp_A_TE_9p_cfs_PML_stag2_para.m)
 
 PML coefficients follow Kuzuoglu & Mittra (1996) CFS-PML with cosine/sine
@@ -289,7 +322,7 @@ def _build_helmholtz_stag1(
 
 
 # ---------------------------------------------------------------------------
-# 9-point stencil assembly — stag2 (Layek & Sengupta 2023)
+# 9-point stencil assembly — stag2 (Layek & Sengupta 2024)
 # ---------------------------------------------------------------------------
 
 def _build_helmholtz_stag2(
@@ -302,7 +335,7 @@ def _build_helmholtz_stag2(
     """
     Assemble the 9-point Helmholtz impedance matrix using the stag2 scheme.
 
-    Port of ``imp_A_TE_9p_cfs_PML_stag2_para.m`` (Layek & Sengupta 2023).
+    Port of ``imp_A_TE_9p_cfs_PML_stag2_para.m`` (Layek & Sengupta 2024).
     Same stencil coefficients as stag1.  Key difference: off-axis (N/S/E/W)
     entries mix Qy and Px cross-products with a (1-a)/4 correction term;
     diagonal entries (NW/NE/SW/SE) use Qy*Q + Px*P products rather than the
@@ -462,7 +495,7 @@ def build_helmholtz_2d(
         If True suppress the top-side PML (free surface BC).
     grid_style : str
         Discretisation variant: "stag1" (Hustedt 2004) or "stag2"
-        (Layek & Sengupta 2023).
+        (Layek & Sengupta 2024).
     use_gpu : bool
         Reserved for future CuPy GPU acceleration.
 

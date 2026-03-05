@@ -1,9 +1,44 @@
+<!--
+================================================================================
+RFDFWI — Full-Waveform Inversion (FWI) of GPR Data  |  By Mrinal
+
+This documentation is part of a Python implementation for Full-Waveform
+Inversion (FWI) of Ground Penetrating Radar (GPR) data. FWI is a geophysical
+imaging technique used to reconstruct subsurface properties (electromagnetic
+permittivity and conductivity) by iteratively comparing modelled and observed
+data.
+
+References:
+  Lavoué et al. (2014); Layek & Sengupta (2019, 2021, & 2024)
+  Köhn, D., De Nil, D. and Rabbel, W. (2017) Tutorial: Introduction to
+  frequency domain modelling and FWI of georadar data with GERMAINE.
+  DOI: 10.13140/RG.2.2.29354.03523
+  ____________________________
+  Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite
+  difference frequency domain full waveform inversion of GPR data: A guide
+  for sedimentary architecture modeling. Pure and Applied Geophysics, 181,
+  2107–2130. https://doi.org/10.1007/s00024-024-03520-1
+
+Copyright © Mrinal Kanti Layek
+Original MATLAB written during PhD @ 2018–19:
+  Mrinal Kanti Layek, Senior Research Fellow (Geophysics)
+  Department of Geology and Geophysics, IIT Kharagpur – 721302, INDIA
+  layek.mk@gmail.com | https://www.researchgate.net/profile/Mrinal_Layek
+
+Python code written during Postdoc @ March 2026:
+  Dr. Mrinal Kanti Layek — Postdoctoral Researcher | 박사후 연구원
+  Geophysics & AI Lab, Department of Energy & Resources Engineering
+  Chonnam National University, Gwangju, Republic of Korea [61186]
+  지구물리 및 인공지능 연구실, 에너지자원공학과, 전남대학교, 광주광역시 [61186]
+  Email: layek.mk@gmail.com
+================================================================================
+-->
 # RFDFWI – Python Implementation  
 **2D Frequency-Domain FDFD + Full Waveform Inversion for GPR**
 
 Last major update: early 2025  
 Status: stable single-frequency & frequency-sweep forward modeling, adjoint-state FWI (L2 + Tikhonov), synthetic inversion workflows  
-Primary goal: faithful Python port & modernization of the MATLAB RFDFWI codebase (Layek & Sengupta 2023)
+Primary goal: faithful Python port & modernization of the MATLAB RFDFWI codebase (Layek & Sengupta 2024)
 
 ## 1. What is this project?
 
@@ -11,7 +46,7 @@ Modern, clean Python implementation of **2D TMz finite-difference frequency-doma
 
 Key features matching / improving the original MATLAB version:
 
-- Complex-frequency stretched (CFS) PML — both classic (Hustedt 2004) and improved staggered (Layek & Sengupta 2023 = stag2)
+- Complex-frequency stretched (CFS) PML — both classic (Hustedt 2004) and improved staggered (Layek & Sengupta 2024 = stag2)
 - 9-point stencil (more accurate than 5-point)
 - Multi-source forward modeling (parallelized over sources / frequencies)
 - Adjoint-state gradient + steepest descent with linesearch or fixed step
