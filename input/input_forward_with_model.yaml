@@ -1,0 +1,35 @@
+# Forward config using model built by run_build_model.py
+# Matched to inp_GPRmodel.m / inp_GPRmodel1.m  (200x200 grid, dh=0.05m)
+domain:
+  nx: 200
+  nz: 200
+  dx: 0.05
+  dz: 0.05
+pml:
+  npx: 10
+  npz: 10
+  a0_cfs: 9.0e8
+freq_hz: 50e6
+freq_sweep:
+  fc_low:  50e6
+  fc_high: 200e6
+  nf:      50
+  clip:    2.5e-3
+  clip1:   1.0e-2
+  tmax_td: 150e-9
+source:
+  ix: 99
+  iz: 20
+receivers:
+  mode: line
+  iz: 20
+  ix_start: 20
+  ix_end: 179
+# Path without extension: expects inputmodel/model_epsr.npy and inputmodel/model_sigma.npy
+model:
+  type: file
+  path: inputmodel/model
+output:
+  dir: results/forward
+  save_fields: false
+  save_traces: true

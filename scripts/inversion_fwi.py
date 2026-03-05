@@ -1,0 +1,574 @@
+"""
+2D FDFD Full Waveform Inversion (FWI).
+
+Matches MATLAB RFDFWI.m + grad_obj_MKLnew.m + ass_grad_TEMKLnew.m:
+
+  - Multi-frequency adjoint-state gradient (GPRFM 10 discrete or custom)
+  - Tikhonov Laplacian regularisation  (LAMBDA_1 for sigma, LAMBDA_2 for epsr)
+  - Armijo backtracking line search
+  - Convergence: ratio = L2 / L2[0] <= conv_ratio  (MATLAB: 5e-5)
+
+Data convention
+---------------
+d_obs / d_calc : ndarray, shape (n_src, n_freq, n_rec), complex
+    Axis 0 — sources, axis 1 — frequencies, axis 2 — receivers.
+    Matches MATLAB precobs(ntr, nw, nshots) re-ordered to (nshots, nw, ntr).
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Any, Callable
+from concurrent.futures import ThreadPoolExecutor
+
+import numpy as np
+from scipy.sparse import linalg as sp_linalg
+
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
+from scripts.forward_fdfd import build_helmholtz_2d, solve_forward
+
+# Physical constants
+EPS0: float = 8.854187817e-12   # F/m
+MU0:  float = 4e-7 * np.pi      # H/m
+
+# GPRFM 10 discrete frequencies matching MATLAB RFDFWI.m
+GPRFM_FREQS_HZ: list[float] = [
+    50e6, 60e6, 70e6, 80e6, 90e6, 100e6, 125e6, 150e6, 175e6, 200e6,
+]
+
+
+# ---------------------------------------------------------------------------
+# Forward data assembly
+# ---------------------------------------------------------------------------
+
+def compute_forward_data(
+    epsr:      np.ndarray,
+    sigma:     np.ndarray,
+    dh:        float,
+    npml:      int,
+    a0_cfs:    float,
+    freqs:     np.ndarray,
+    sources:   list[tuple[int, int]],
+    receivers: list[tuple[int, int]],
+    grid_style: str = "stag1",
+    n_workers:  int = 1,
+) -> np.ndarray:
+    """
+    Run FDFD forward at every (source, frequency) pair.
+
+    Source amplitude follows MATLAB RHS_TE1.m:
+        amp = -(omega * mu0 * j) / dh^2
+
+    Parameters
+    ----------
+    epsr, sigma : (nz, nx)  Current model.
+    dh          : float     Grid spacing [m].
+    npml        : int       PML thickness [cells].
+    a0_cfs      : float     CFS-PML sigma_max.
+    freqs       : (nf,)     Frequency array [Hz].
+    sources     : list of (ix, iz)  Source positions.
+    receivers   : list of (ix, iz)  Receiver positions (same for all sources).
+    grid_style  : "stag1" or "stag2".
+    n_workers   : int  Parallel workers for source solves (per frequency).
+
+    Returns
+    -------
+    d_calc : (n_src, n_freq, n_rec)  Complex receiver responses.
+    """
+    nz, nx = epsr.shape
+    n_src  = len(sources)
+    n_freq = len(freqs)
+    n_rec  = len(receivers)
+
+    d_calc = np.zeros((n_src, n_freq, n_rec), dtype=complex)
+
+    for fi, freq in enumerate(freqs):
+        omega   = 2.0 * np.pi * freq
+        src_amp = -(omega * MU0 * 1j) / dh ** 2
+
+        A = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
+                               grid_style=grid_style)
+
+        def _fwd(si: int) -> tuple[int, np.ndarray]:
+            ix, iz = sources[si]
+            u = solve_forward(A, ix, iz, nx, nz, source_amplitude=src_amp)
+            row = np.array([u[riz, rix] for rix, riz in receivers], dtype=complex)
+            return si, row
+
+        if n_workers > 1 and n_src > 1:
+            with ThreadPoolExecutor(max_workers=n_workers) as ex:
+                for si, row in ex.map(_fwd, range(n_src)):
+                    d_calc[si, fi, :] = row
+        else:
+            for si in range(n_src):
+                _, row = _fwd(si)
+                d_calc[si, fi, :] = row
+
+    return d_calc
+
+
+# ---------------------------------------------------------------------------
+# Adjoint-state gradient
+# ---------------------------------------------------------------------------
+
+def compute_gradient(
+    epsr:      np.ndarray,
+    sigma:     np.ndarray,
+    dh:        float,
+    npml:      int,
+    a0_cfs:    float,
+    freqs:     np.ndarray,
+    sources:   list[tuple[int, int]],
+    receivers: list[tuple[int, int]],
+    d_obs:     np.ndarray,
+    grid_style: str  = "stag1",
+    n_workers:  int  = 1,
+    verbose:    bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+    """
+    Compute the adjoint-state gradient, pseudo-Hessian diagonal, and L2 misfit.
+
+    Matches MATLAB grad_obj_MKLnew.m + ass_grad_TEMKLnew.m:
+
+        For each frequency omega and each source:
+            Forward:  A  u   = -(omega*mu0*j)/dh^2  at k_src
+            Residual: res    = d_calc - d_obs                (n_rec,)
+            Adjoint:  A^H lam = res / dh^2            at k_rec positions
+            Gradient (MATLAB ass_grad_TEMKLnew.m):
+                grad_epsr  += Re( omega^2 * conj(u) * lam )
+                grad_sigma += Re( j*omega * conj(u) * lam )
+            Pseudo-Hessian diagonal (Born approximation):
+                hess_epsr  += omega^4 * |u|^2
+                hess_sigma += omega^2 * |u|^2
+
+    Returns
+    -------
+    grad_epsr  : (nz, nx)  Raw adjoint gradient w.r.t. epsr.
+    grad_sigma : (nz, nx)  Raw adjoint gradient w.r.t. sigma.
+    hess_epsr  : (nz, nx)  Pseudo-Hessian diagonal w.r.t. epsr.
+    hess_sigma : (nz, nx)  Pseudo-Hessian diagonal w.r.t. sigma.
+    d_calc     : (n_src, n_freq, n_rec)  Calculated data.
+    L2         : float  Total misfit  0.5 * sum |d_calc - d_obs|^2.
+    """
+    nz, nx = epsr.shape
+    N      = nx * nz
+    n_src  = len(sources)
+    n_freq = len(freqs)
+    n_rec  = len(receivers)
+
+    grad_epsr  = np.zeros((nz, nx), dtype=np.float64)
+    grad_sigma = np.zeros((nz, nx), dtype=np.float64)
+    hess_epsr  = np.zeros((nz, nx), dtype=np.float64)
+    hess_sigma = np.zeros((nz, nx), dtype=np.float64)
+    d_calc     = np.zeros((n_src, n_freq, n_rec), dtype=complex)
+    L2_total   = 0.0
+
+    for fi, freq in enumerate(freqs):
+        omega   = 2.0 * np.pi * freq
+        src_amp = -(omega * MU0 * 1j) / dh ** 2
+
+        if verbose:
+            print(f"    [freq {fi+1:2d}/{n_freq}] f={freq/1e6:6.1f} MHz"
+                  f"  building A ({grid_style}) ...")
+
+        A     = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
+                                   grid_style=grid_style)
+        A_adj = A.conj().T.tocsr()
+
+        if verbose:
+            print(f"    [freq {fi+1:2d}/{n_freq}] A assembled ({A.shape[0]}×{A.shape[1]},"
+                  f" nnz={A.nnz}) — {n_src} sources ...")
+
+        for si in range(n_src):
+            ix, iz = sources[si]
+
+            # ---- Forward solve ----
+            if verbose:
+                print(f"      [src {si+1:3d}/{n_src}] (ix={ix:3d}, iz={iz:3d})"
+                      f"  forward u ...", end="", flush=True)
+
+            u = solve_forward(A, ix, iz, nx, nz, source_amplitude=src_amp)
+
+            if verbose:
+                print(f"  |u|_max={np.max(np.abs(u)):.3e}", end="")
+
+            # ---- Receiver values and residual ----
+            dc  = np.array([u[riz, rix] for rix, riz in receivers], dtype=complex)
+            res = dc - d_obs[si, fi, :]          # d_calc - d_obs
+            d_calc[si, fi, :] = dc
+            L2_src = 0.5 * float(np.sum(np.abs(res) ** 2))
+            L2_total += L2_src
+
+            if verbose:
+                r_max = float(np.max(np.abs(res)))
+                r_rms = float(np.sqrt(np.mean(np.abs(res) ** 2)))
+                print(f"  |res|_max={r_max:.3e}  |res|_rms={r_rms:.3e}"
+                      f"  L2_src={L2_src:.3e}", end="")
+
+            # ---- Adjoint RHS: b_adj[k_rec] = res[r] / dh^2 ----
+            b_adj = np.zeros(N, dtype=complex)
+            for ri, (rix, riz) in enumerate(receivers):
+                b_adj[riz * nx + rix] += res[ri] / dh ** 2
+
+            # ---- Adjoint solve ----
+            if verbose:
+                print(f"  adj λ ...", end="", flush=True)
+
+            lam = sp_linalg.spsolve(A_adj, b_adj).reshape(nz, nx)
+
+            if verbose:
+                print(f"  |λ|_max={np.max(np.abs(lam)):.3e}")
+
+            # ---- Gradient (MATLAB ass_grad_TEMKLnew.m) ----
+            cu = np.conj(u)
+            grad_epsr  += np.real(omega ** 2 * cu * lam)
+            grad_sigma += np.real(1j * omega  * cu * lam)
+
+            # ---- Pseudo-Hessian diagonal (Born approximation) ----
+            u_sq = np.abs(u) ** 2
+            hess_epsr  += (omega ** 4) * u_sq
+            hess_sigma += (omega ** 2) * u_sq
+
+        if verbose:
+            ge_rms = float(np.sqrt(np.mean(grad_epsr ** 2)))
+            gs_rms = float(np.sqrt(np.mean(grad_sigma ** 2)))
+            print(f"    [freq {fi+1:2d}/{n_freq}] cumulative grad_epsr rms={ge_rms:.3e}"
+                  f"  grad_sigma rms={gs_rms:.3e}")
+
+    if verbose:
+        print(f"  gradient done — L2_total={L2_total:.6e}")
+        print(f"    grad_epsr : min={grad_epsr.min():.3e}  max={grad_epsr.max():.3e}"
+              f"  rms={float(np.sqrt(np.mean(grad_epsr**2))):.3e}")
+        print(f"    grad_sigma: min={grad_sigma.min():.3e}  max={grad_sigma.max():.3e}"
+              f"  rms={float(np.sqrt(np.mean(grad_sigma**2))):.3e}")
+        print(f"    hess_epsr : min={hess_epsr.min():.3e}  max={hess_epsr.max():.3e}")
+        print(f"    hess_sigma: min={hess_sigma.min():.3e}  max={hess_sigma.max():.3e}")
+
+    return grad_epsr, grad_sigma, hess_epsr, hess_sigma, d_calc, L2_total
+
+
+# ---------------------------------------------------------------------------
+# Tikhonov regularisation
+# ---------------------------------------------------------------------------
+
+def tikhonov_sigma(
+    sigma:      np.ndarray,
+    dh:         float,
+    lambda1:    float,
+    beta_sigma: float,
+    sigma0:     float,
+) -> np.ndarray:
+    """
+    Tikhonov Laplacian term for sigma (MATLAB Tikhonov_grad_TE.m).
+
+        sigmar = sigma * (beta_sigma / sigma0)
+        tikh   = LAMBDA_1 * beta_sigma * Laplacian(sigmar) / dh^2
+
+    Added to grad_sigma before the model update.
+    Returns zeros if lambda1 == 0.
+    """
+    if lambda1 == 0.0:
+        return np.zeros_like(sigma)
+    sigmar = sigma * (beta_sigma / sigma0)
+    lap = np.zeros_like(sigmar)
+    lap[1:-1, 1:-1] = (
+        sigmar[2:, 1:-1] + sigmar[:-2, 1:-1]
+        + sigmar[1:-1, 2:] + sigmar[1:-1, :-2]
+        - 4.0 * sigmar[1:-1, 1:-1]
+    ) / dh ** 2
+    return lambda1 * beta_sigma * lap
+
+
+def tikhonov_epsr(
+    epsr:      np.ndarray,
+    dh:        float,
+    lambda2:   float,
+    beta_epsr: float,
+    eps0:      float = EPS0,
+) -> np.ndarray:
+    """
+    Tikhonov Laplacian term for epsr (MATLAB: LAMBDA_2 usually = 0).
+
+    Returns zeros if lambda2 == 0 (default MATLAB behaviour).
+    """
+    if lambda2 == 0.0:
+        return np.zeros_like(epsr)
+    epsilonr = epsr * (beta_epsr / eps0)
+    lap = np.zeros_like(epsilonr)
+    lap[1:-1, 1:-1] = (
+        epsilonr[2:, 1:-1] + epsilonr[:-2, 1:-1]
+        + epsilonr[1:-1, 2:] + epsilonr[1:-1, :-2]
+        - 4.0 * epsilonr[1:-1, 1:-1]
+    ) / dh ** 2
+    return lambda2 * beta_epsr * lap
+
+
+# ---------------------------------------------------------------------------
+# Bounds
+# ---------------------------------------------------------------------------
+
+def apply_bounds(
+    epsr:   np.ndarray,
+    sigma:  np.ndarray,
+    bounds: dict[str, float],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Clip model parameters to physical bounds (MATLAB epsr_low/high, sigr_low/high)."""
+    epsr  = np.clip(epsr,  bounds.get("epsr_min",  1.0),  bounds.get("epsr_max",  80.0))
+    sigma = np.clip(sigma, bounds.get("sigma_min", 0.0),  bounds.get("sigma_max", 1.0))
+    return epsr, sigma
+
+
+# ---------------------------------------------------------------------------
+# Main inversion loop
+# ---------------------------------------------------------------------------
+
+def run_inversion(
+    config:       dict[str, Any],
+    d_obs:        np.ndarray,
+    epsr_init:    np.ndarray | None = None,
+    sigma_init:   np.ndarray | None = None,
+    use_gpu:      bool = False,
+    n_workers:    int  = 1,
+    grid_style:   str  = "stag1",
+    iter_callback: Callable[[int, np.ndarray, np.ndarray, dict], None] | None = None,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """
+    Run the FWI iteration loop matching MATLAB RFDFWI.m.
+
+    Algorithm per iteration:
+        1. Compute adjoint-state gradient + L2 misfit
+        2. Add Tikhonov regularisation to gradient
+        3. Armijo backtracking line search (MATLAB wolfe_TENEW style)
+        4. Model update + bounds projection
+        5. Convergence check: L2 / L2[0] <= conv_ratio
+
+    Parameters
+    ----------
+    config       : dict   Full configuration (forward, acquisition, inversion sections).
+    d_obs        : (n_src, n_freq, n_rec)  Observed complex data at GPRFM frequencies.
+    epsr_init    : (nz, nx) or None  Starting permittivity (built from config if None).
+    sigma_init   : (nz, nx) or None  Starting conductivity (built from config if None).
+    use_gpu      : bool   Reserved (not yet implemented).
+    n_workers    : int    Parallel workers for source solves.
+    grid_style   : "stag1" or "stag2".
+    iter_callback: callable(iter_num, epsr, sigma, extras_dict) — called after each step.
+                   extras_dict keys: L2, grad_epsr, grad_sigma, hess_epsr, hess_sigma,
+                   tikh_epsr, tikh_sigma, reg_grad_epsr, reg_grad_sigma,
+                   dir_epsr, dir_sigma, step, delta_epsr, delta_sigma.
+
+    Returns
+    -------
+    epsr_final  : (nz, nx)
+    sigma_final : (nz, nx)
+    history     : dict with keys 'misfit' (list[float]), 'step' (list[float]).
+    """
+    from create_models.build_models import build_model_from_config, build_4sided_acquisition
+
+    # ---- Parse config ----
+    fwd_cfg = config.get("forward", config)
+    domain  = fwd_cfg.get("domain", fwd_cfg)
+    nx      = int(domain.get("nx", 200))
+    nz      = int(domain.get("nz", 200))
+    dh      = float(domain.get("dx", 0.05))
+    pml_cfg = fwd_cfg.get("pml", {})
+    npml    = int(pml_cfg.get("npx", 10))
+    a0_cfs  = float(pml_cfg.get("a0_cfs", 9e8))
+
+    inv_cfg    = config.get("inversion", {})
+    max_iter   = int(inv_cfg.get("max_iter", 20))
+    bounds     = inv_cfg.get("bounds", {})
+    reg        = inv_cfg.get("regularization", {})
+    lambda1    = float(reg.get("lambda_sigma", reg.get("alpha", 2e-4)))  # MATLAB LAMBDA_1
+    lambda2    = float(reg.get("lambda_epsr",  0.0))                      # MATLAB LAMBDA_2
+    beta_sigma = float(reg.get("beta_sigma",   1.0))
+    beta_epsr  = float(reg.get("beta_epsr",    1.0))
+    sigma0     = float(inv_cfg.get("sigma0",   5.6e-3))   # MATLAB sig0
+    step_init  = float(inv_cfg.get("step_init", -1.0))    # <=0 → auto-scale
+    stepmax    = int(inv_cfg.get("stepmax",    3))         # MATLAB STEPMAX
+    scale_fac  = float(inv_cfg.get("scale_fac", 2.0))     # MATLAB SCALEFAC
+    c1_wolfe   = float(inv_cfg.get("c1_wolfe", 1e-4))      # Armijo C1
+    conv_ratio = float(inv_cfg.get("conv_ratio", 5e-5))    # MATLAB convergence ratio
+
+    # ---- Frequencies ----
+    freqs_cfg = inv_cfg.get("freqs_hz", None)
+    freqs = np.array(freqs_cfg if freqs_cfg else GPRFM_FREQS_HZ, dtype=float)
+    n_freq = len(freqs)
+
+    # ---- Acquisition ----
+    acq = config.get("acquisition", {})
+    if acq.get("mode") == "4sided":
+        npml_acq = int(acq.get("npml", npml))
+        nsrc_ps  = int(acq.get("nsrc_per_side", 20))
+        nrec_ps  = int(acq.get("nrec_per_side", 40))
+        src_list, rec_list = build_4sided_acquisition(npml_acq, nrec_ps, nsrc_ps)
+        sources   = [(int(s["ix"]), int(s["iz"])) for s in src_list]
+        receivers = [(int(r["ix"]), int(r["iz"])) for r in rec_list]
+    else:
+        src_list = acq.get("sources", [{"ix": 99, "iz": 20}])
+        sources  = [(int(s["ix"]), int(s["iz"])) for s in src_list]
+        rec_cfg  = acq.get("receivers", {})
+        if isinstance(rec_cfg, dict) and rec_cfg.get("mode") == "line":
+            iz_r = int(rec_cfg.get("iz", 20))
+            xs   = int(rec_cfg.get("ix_start", 20))
+            xe   = int(rec_cfg.get("ix_end", 179))
+            receivers = [(ix, iz_r) for ix in range(xs, xe + 1)]
+        else:
+            receivers = [(int(r["ix"]), int(r["iz"])) for r in (rec_cfg or [])]
+
+    n_src = len(sources)
+    n_rec = len(receivers)
+
+    # ---- Initial model ----
+    if epsr_init is None or sigma_init is None:
+        init_cfg = config.get("initial_model", config.get("model", {}))
+        if isinstance(init_cfg, dict) and init_cfg.get("type") == "homogeneous":
+            epsr_init  = np.full((nz, nx), float(init_cfg.get("epsr",  4.0)))
+            sigma_init = np.full((nz, nx), float(init_cfg.get("sigma", 3e-3)))
+        else:
+            epsr_init, sigma_init = build_model_from_config(fwd_cfg, nx, nz)
+
+    epsr  = np.array(epsr_init,  dtype=np.float64)
+    sigma = np.array(sigma_init, dtype=np.float64)
+    epsr, sigma = apply_bounds(epsr, sigma, bounds)
+
+    history: dict[str, list] = {"misfit": [], "step": []}
+    L2_first: float | None = None
+    step = step_init  # may be overridden by auto-scale below
+
+    print(f"  Grid style : {grid_style}")
+    print(f"  Sources    : {n_src}  |  Receivers: {n_rec}")
+    print(f"  Frequencies: {n_freq}  ({freqs[0]/1e6:.0f}–{freqs[-1]/1e6:.0f} MHz)")
+    print(f"  Max iter   : {max_iter}  |  conv_ratio={conv_ratio:.1e}")
+    print(f"  LAMBDA_1   : {lambda1}  |  LAMBDA_2: {lambda2}")
+    print(f"  sigma0     : {sigma0:.3e}  |  beta_sigma={beta_sigma}, beta_epsr={beta_epsr}")
+    print(f"  STEPMAX    : {stepmax}  |  SCALEFAC={scale_fac}  |  C1={c1_wolfe:.1e}")
+
+    # ---- Iteration loop ----
+    for it in range(max_iter):
+        print(f"\n{'='*60}")
+        print(f"[iter {it+1}/{max_iter}] Computing adjoint-state gradient"
+              f"  ({n_src} src × {n_freq} freq) ...")
+
+        grad_epsr, grad_sigma, hess_epsr, hess_sigma, d_calc, L2 = compute_gradient(
+            epsr, sigma, dh, npml, a0_cfs, freqs,
+            sources, receivers, d_obs,
+            grid_style=grid_style, n_workers=n_workers, verbose=True,
+        )
+        history["misfit"].append(L2)
+
+        if L2_first is None:
+            L2_first = max(L2, 1e-300)
+
+        ratio = L2 / L2_first
+        print(f"  >> L2={L2:.6e}  ratio={ratio:.3e}", end="")
+
+        # ---- Convergence ----
+        if ratio <= conv_ratio:
+            print("  [CONVERGED — ratio threshold reached]")
+            break
+
+        # ---- Tikhonov regularisation (added to gradient) ----
+        print(f"\n  Tikhonov regularisation (LAMBDA_1={lambda1:.2e}, LAMBDA_2={lambda2:.2e}) ...")
+        tikh_s = tikhonov_sigma(sigma, dh, lambda1, beta_sigma, sigma0)
+        tikh_e = tikhonov_epsr(epsr,  dh, lambda2, beta_epsr)
+        g_sigma = grad_sigma + tikh_s
+        g_epsr  = grad_epsr  + tikh_e
+        print(f"    tikh_sigma: max={np.max(np.abs(tikh_s)):.3e}"
+              f"  rms={float(np.sqrt(np.mean(tikh_s**2))):.3e}")
+        print(f"    tikh_epsr : max={np.max(np.abs(tikh_e)):.3e}"
+              f"  rms={float(np.sqrt(np.mean(tikh_e**2))):.3e}")
+        print(f"    reg_grad_epsr : rms={float(np.sqrt(np.mean(g_epsr**2))):.3e}"
+              f"  min={g_epsr.min():.3e}  max={g_epsr.max():.3e}")
+        print(f"    reg_grad_sigma: rms={float(np.sqrt(np.mean(g_sigma**2))):.3e}"
+              f"  min={g_sigma.min():.3e}  max={g_sigma.max():.3e}")
+
+        # ---- Search direction (steepest descent: d = -reg_gradient) ----
+        dir_epsr  = -g_epsr
+        dir_sigma = -g_sigma
+        print(f"  Search direction: d_epsr = -reg_grad_epsr"
+              f"  d_sigma = -reg_grad_sigma")
+
+        # ---- Auto-scale initial step ----
+        grad_norm_sq = float(np.sum(g_epsr ** 2 + g_sigma ** 2))
+        if step <= 0.0 or it == 0:
+            if grad_norm_sq > 0:
+                step = L2 / grad_norm_sq
+            else:
+                step = 1.0
+            print(f"  Auto-scaled step: ||g||^2={grad_norm_sq:.3e}"
+                  f"  L2={L2:.3e}  -> step={step:.3e}")
+
+        # ---- Armijo backtracking line search ----
+        print(f"  Armijo line search (c1={c1_wolfe:.1e}, max_ls={stepmax}) ...")
+        phi0       = L2
+        armijo_rhs = c1_wolfe * step * grad_norm_sq
+        accepted   = False
+
+        for ls in range(stepmax):
+            e_try = epsr  + step * dir_epsr
+            s_try = sigma + step * dir_sigma
+            e_try, s_try = apply_bounds(e_try, s_try, bounds)
+
+            d_try = compute_forward_data(
+                e_try, s_try, dh, npml, a0_cfs, freqs,
+                sources, receivers, grid_style=grid_style, n_workers=n_workers,
+            )
+            L2_try = 0.5 * float(np.sum(np.abs(d_try - d_obs) ** 2))
+            ok = L2_try <= phi0 - armijo_rhs
+            print(f"    [ls {ls+1}/{stepmax}] step={step:.3e}"
+                  f"  L2_try={L2_try:.6e}  decrease={phi0-L2_try:.3e}"
+                  f"  Armijo={'YES' if ok else 'NO'}")
+
+            if ok:
+                accepted = True
+                break
+
+            step /= scale_fac
+            armijo_rhs /= scale_fac
+
+        if not accepted:
+            print(f"  [WARNING] No sufficient decrease after {stepmax} trials"
+                  f" — accepting step={step:.3e} anyway")
+
+        # ---- Apply update ----
+        delta_epsr  = step * dir_epsr
+        delta_sigma = step * dir_sigma
+        epsr  = epsr  + delta_epsr
+        sigma = sigma + delta_sigma
+        epsr, sigma = apply_bounds(epsr, sigma, bounds)
+        history["step"].append(step)
+        print(f"  Model update applied: step={step:.3e}")
+        print(f"    |Δepsr|_max={np.max(np.abs(delta_epsr)):.3e}"
+              f"  |Δsigma|_max={np.max(np.abs(delta_sigma)):.3e}")
+        print(f"    epsr  : min={epsr.min():.3f}  max={epsr.max():.3f}")
+        print(f"    sigma : min={sigma.min():.4e}  max={sigma.max():.4e}")
+
+        # ---- Per-iteration callback ----
+        if iter_callback is not None:
+            extras = {
+                "L2":             L2,
+                "grad_epsr":      grad_epsr,
+                "grad_sigma":     grad_sigma,
+                "hess_epsr":      hess_epsr,
+                "hess_sigma":     hess_sigma,
+                "tikh_epsr":      tikh_e,
+                "tikh_sigma":     tikh_s,
+                "reg_grad_epsr":  g_epsr,
+                "reg_grad_sigma": g_sigma,
+                "dir_epsr":       dir_epsr,
+                "dir_sigma":      dir_sigma,
+                "step":           step,
+                "delta_epsr":     delta_epsr,
+                "delta_sigma":    delta_sigma,
+            }
+            print(f"  Callback: saving iter {it+1} images ...")
+            iter_callback(it + 1, epsr, sigma, extras)
+
+        # ---- Expand step for next iteration ----
+        step = min(step * scale_fac, step_init if step_init > 0 else step * 10)
+        print(f"  Next step estimate: {step:.3e}")
+
+    return epsr, sigma, history

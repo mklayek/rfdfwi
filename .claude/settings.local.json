@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(rfdfwimkl/Scripts/pip install:*)",
+      "Bash(tail:*)",
+      "Bash(cd /d/rfdfwi && conda run -n rfdfwimkl python examples/run_forward_wavefield.py --stag1 --no-tiff -v 2>&1)",
+      "Bash(cd /d/rfdfwi && /c/Users/user/miniconda3/envs/rfdfwimkl/python.exe examples/run_forward_wavefield.py --stag1 --no-tiff -v 2>&1)",
+      "Bash(cmd.exe:*)",
+      "Bash(ls:*)",
+      "Bash(C:/Users/user/miniconda3/envs/rfdfwimkl/python.exe:*)"
+    ]
+  }
+}

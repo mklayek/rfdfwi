@@ -1,0 +1,59 @@
+# FWI inversion configuration — matched to inp_GPRmodel.m / inp_GPRmodel1.m
+# 200x200 grid (180 interior + 10-cell CFS-PML on each side), dh=0.05m
+forward:
+  domain:
+    nx: 200
+    nz: 200
+    dx: 0.05
+    dz: 0.05
+  pml:
+    npx: 10
+    npz: 10
+    a0_cfs: 9.0e8
+  freq_hz: 50e6
+  freq_sweep:
+    fc_low:  50e6
+    fc_high: 200e6
+    nf:      50
+    clip:    2.5e-3
+    clip1:   1.0e-2
+    tmax_td: 150e-9
+
+# 4-sided acquisition geometry (MATLAB: nrec=40/side, nsrc=20/side)
+# Boundary: iz/ix = 20..179  (10 cells inside interior from each edge)
+# Total: 82 sources (21+21+20+20), 162 receivers (41+41+40+40)
+acquisition:
+  mode: 4sided
+  npml: 10
+  nrec_per_side: 40
+  nsrc_per_side: 20
+
+# Initial model — homogeneous background (MATLAB: epsr=4.0, sig0=5.6e-3 for normalisation)
+# Use true background values as starting point
+initial_model:
+  type: homogeneous
+  epsr: 4.0
+  sigma: 3.0e-3
+
+# Inversion parameters (MATLAB: LBFGS, Wolfe line search)
+inversion:
+  max_iter: 20
+  step_type: linesearch
+  step_init: 1.0
+  regularization:
+    type: tikhonov
+    alpha: 1.0e-4       # MATLAB: LAMBDA_1=2e-4
+  bounds:
+    epsr_min:  3.8      # MATLAB: epsr_low=3.8*eps0/eps0
+    epsr_max:  33.2     # MATLAB: epsr_high=33.2*eps0/eps0
+    sigma_min: 0.08e-3  # MATLAB: sigr_low=0.08e-3
+    sigma_max: 20.2e-3  # MATLAB: sigr_high=20.2e-3
+
+# Data
+data:
+  observed_dir: obs
+  synthetic_dir: results/forward
+
+output:
+  dir: results/inverse
+  save_every_iter: true

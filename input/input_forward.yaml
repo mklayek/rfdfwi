@@ -1,0 +1,59 @@
+# Forward (FDFD) configuration — matched to inp_GPRmodel.m / inp_GPRmodel1.m
+# Physical domain: 180x180 cells @ dh=0.05m + 10-cell CFS-PML = 200x200 total
+domain:
+  nx: 200
+  nz: 200
+  dx: 0.05    # m  (MATLAB: dh=0.05, 180 interior cells -> 9 m physical)
+  dz: 0.05    # m
+
+# CFS-PML (MATLAB: npml=10, a0_cfs=9e8, kappax_max=5, alphax_max=0.2)
+pml:
+  npx: 10
+  npz: 10
+  a0_cfs: 9.0e8
+
+# Single-frequency for forward run (MATLAB: f=50e6 center)
+freq_hz: 50e6
+
+# Frequency sweep (MATLAB: FC_low=50e6, FC_high=200e6, nf=50)
+# df = (FC_high - FC_low) / (nf-1) = 150e6 / 49 ~ 3.061e6 Hz
+freq_sweep:
+  fc_low:  50e6
+  fc_high: 200e6
+  nf:      50
+  clip:    2.5e-3    # Blackman-Harris amplitude clip
+  clip1:   1.0e-2
+  tmax_td: 150e-9   # Maximum recording time [s]
+
+# Source: top acquisition row (iz=20 = npml + 10 cells inside interior)
+# MATLAB: ysrc_1 = min(y)+10*dh = 0.05+0.50 = 0.55m -> Python iz = 11+9 = 20
+# Single centre source for wavefield visualisation
+source:
+  ix: 99    # centre column (99*0.05=4.95m ~ centre of 9m domain)
+  iz: 20    # top acquisition row (0.55m in MATLAB interior coords)
+
+# Line receiver array at top acquisition row (matching 4-sided top row)
+receivers:
+  mode: line
+  iz: 20
+  ix_start: 20
+  ix_end: 179
+
+# True model — exact replica of MATLAB create_models_mkl.m
+# Background: epsr=4.0, sigma=3.0e-3 S/m (MATLAB: epsilonr=4*eps0, sigma=3e-3)
+# Cross 1 (dry sand): epsr=1.0, sigma=0.1e-3  (MATLAB rows 50:80,cols 60:70)
+# Cross 2 (dry clay): epsr=8.0, sigma=10e-3   (MATLAB rows 100:130,cols 110:120)
+model:
+  type: mkl_two_cross
+  epsr_bg:    4.0
+  sigma_bg:   3.0e-3
+  cross1_epsr:  1.0
+  cross1_sigma: 0.1e-3
+  cross2_epsr:  8.0
+  cross2_sigma: 10.0e-3
+
+# Output
+output:
+  dir: results/forward
+  save_fields: false
+  save_traces: true

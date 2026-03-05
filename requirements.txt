@@ -1,0 +1,10 @@
+# Core dependencies (Python 3.11+)
+numpy>=1.20,<3.0
+scipy>=1.7,<2.0
+matplotlib>=3.4,<4.0
+pyyaml>=5.4,<7.0
+
+# Optional: GPU acceleration (CuPy -- requires NVIDIA CUDA)
+# For CUDA 11.x: pip install cupy-cuda11x>=12.0
+# For CUDA 12.x: pip install cupy-cuda12x>=12.0
+# Enable with --use-gpu flag; sparse direct solver speedup not yet implemented

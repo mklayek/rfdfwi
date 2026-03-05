@@ -1,0 +1,19 @@
+Python FDFD / FWI — Commands Reference
+=======================================
+
+** DEPRECATED — Please use the up-to-date documentation instead **
+
+  INSTALLATION.md    — Environment setup, step-by-step workflows, output directory guide
+  CLI_REFERENCE.md   — Complete CLI flags for all example scripts
+  README.md          — Quick-start (5 commands)
+  docs/MANUAL.md     — Full reference manual (algorithms, config, outputs, troubleshooting)
+
+Quick start (copy-paste):
+  conda activate rfdfwimkl
+  python examples/run_build_model.py
+  python examples/run_forward_wavefield.py --stag2 --ncpus 15
+  python examples/run_forward_bscan.py --stag2 --ncpus 15
+  python examples/run_forward_cmp.py --stag2 --ncpus 10
+  python examples/run_inversion_example.py --stag2 --ncpus 15
+
+Updated: March 2025

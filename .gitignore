@@ -1,0 +1,21 @@
+# Python virtual environment
+rfdfwimkl/
+
+# Results (large generated files)
+results/
+inputmodel/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
