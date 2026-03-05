@@ -1,8 +1,17 @@
+---
+**Dr. Mrinal Kanti Layek** — Postdoctoral Researcher | 박사후 연구원  
+Geophysics & AI Lab, Department of Energy & Resources Engineering  
+Chonnam National University, Gwangju, Republic of Korea [61186]  
+지구물리 및 인공지능 연구실, 에너지자원공학과, 전남대학교, 광주광역시 [61186]  
+Email: layek.mk@gmail.com | [ResearchGate](https://www.researchgate.net/profile/Mrinal_Layek)
+
+---
+
 # RFDFWI (Python)
 
 2-D Frequency-Domain Finite-Difference (FDFD) forward modelling and Full-Waveform
 Inversion (FWI) for Ground-Penetrating Radar (GPR) — Python port of the MATLAB
-RFDFWI toolbox (Layek & Sengupta 2023).
+RFDFWI toolbox (Layek & Sengupta 2024).
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
@@ -13,7 +22,7 @@ RFDFWI toolbox (Layek & Sengupta 2023).
 ## Key features
 
 - **Two 9-point CFS-PML stencils**: stag1 (Hustedt et al. 2004) and stag2
-  (Layek & Sengupta 2023, recommended)
+  (Layek & Sengupta 2024, recommended)
 - **Exact MATLAB replica**: 200x200 grid (180 interior + 10-cell PML each side),
   dh=0.05 m, physical domain 9 m x 9 m, frequencies 50-200 MHz (nf=50)
 - **TE-mode forward solver**: sparse LU via `scipy.sparse.linalg.spsolve`;
@@ -100,9 +109,49 @@ Both must print PASS before trusting any results.
 
 ## References
 
-- Layek, M. K., & Sengupta, D. (2023). A new 9-point staggered-grid
-  finite-difference method for frequency-domain elastic full-waveform inversion.
-  *Geophysics*, 88(5).
+- Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite difference
+  frequency domain full waveform inversion of GPR data: A guide for sedimentary
+  architecture modeling. *Pure and Applied Geophysics*, 181, 2107–2130.
+  https://doi.org/10.1007/s00024-024-03520-1
 - Hustedt, B., Operto, S., & Virieux, J. (2004). Mixed-grid and staggered-grid
   finite-difference methods for frequency-domain acoustic wave modelling.
   *Geophysical Journal International*, 157(3), 1269-1296.
+
+---
+
+## About this Project
+
+**RFDFWI — Full-Waveform Inversion (FWI) of GPR Data**
+
+This code is a Python implementation for Full-Waveform Inversion (FWI)
+of Ground Penetrating Radar (GPR) data. FWI is a geophysical imaging
+technique used to reconstruct subsurface properties (electromagnetic
+permittivity and conductivity) by iteratively comparing modelled and
+observed data.
+
+**References:**
+
+- Lavoué et al. (2014); Layek & Sengupta (2019, 2021, & 2024)
+- Köhn, D., De Nil, D. and Rabbel, W. (2017) Tutorial: Introduction to
+  frequency domain modelling and FWI of georadar data with GERMAINE.
+  DOI: 10.13140/RG.2.2.29354.03523
+- Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite
+  difference frequency domain full waveform inversion of GPR data: A guide
+  for sedimentary architecture modeling. *Pure and Applied Geophysics*, 181,
+  2107–2130. https://doi.org/10.1007/s00024-024-03520-1
+
+---
+
+**Copyright © Mrinal Kanti Layek**
+
+Original MATLAB written during PhD @ 2018–19:  
+Mrinal Kanti Layek, Senior Research Fellow (Geophysics)  
+Department of Geology and Geophysics, IIT Kharagpur – 721302, INDIA  
+layek.mk@gmail.com | [ResearchGate](https://www.researchgate.net/profile/Mrinal_Layek)
+
+Python code written during Postdoc @ March 2026:  
+Dr. Mrinal Kanti Layek — Postdoctoral Researcher | 박사후 연구원  
+Geophysics & AI Lab, Department of Energy & Resources Engineering  
+Chonnam National University, Gwangju, Republic of Korea [61186]  
+지구물리 및 인공지능 연구실, 에너지자원공학과, 전남대학교, 광주광역시 [61186]  
+Email: layek.mk@gmail.com
