@@ -109,10 +109,14 @@ Both must print PASS before trusting any results.
 
 ## References
 
+<<<<<<< HEAD
 - Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite difference
   frequency domain full waveform inversion of GPR data: A guide for sedimentary
   architecture modeling. *Pure and Applied Geophysics*, 181, 2107–2130.
   https://doi.org/10.1007/s00024-024-03520-1
+=======
+- Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite difference frequency domain full waveform inversion of GPR data: A guide for sedimentary architecture modeling. *Pure and Applied Geophysics*, 181, 2107–2130. https://doi.org/10.1007/s00024-024-03520-1
+>>>>>>> ca6c3653a1c0b0893fa44545e4d3ca6591a2cf51
 - Hustedt, B., Operto, S., & Virieux, J. (2004). Mixed-grid and staggered-grid
   finite-difference methods for frequency-domain acoustic wave modelling.
   *Geophysical Journal International*, 157(3), 1269-1296.
