@@ -157,7 +157,7 @@ def _parse_args() -> argparse.Namespace:
 
     # Initial model override
     parser.add_argument(
-        "--init-smooth", type=float, default=2.0, metavar="PX",
+        "--init-smooth", type=float, default=6.0, metavar="PX",
         help="Gaussian sigma [pixels] for smoothing true model → initial model. "
              "Set 0 to use config initial_model (no smoothing).",
     )
@@ -462,14 +462,14 @@ def main() -> None:
         true_label = f"built from config ({fwd_cfg.get('model', {}).get('type', 'config')})"
 
     # ---- Save true model images ----
-    _save_model_image(true_epsr, dh, models_dir / "true_epsr.png",
+    _save_model_image(true_epsr, dh, models_dir / "true_model_epsr.png",
                       "True model — εᵣ", cmap="seismic", vmin=0.0, vmax=10.0,
                       label="Relative permittivity")
-    _save_model_image(true_sigma * 1e3, dh, models_dir / "true_sigma.png",
+    _save_model_image(true_sigma * 1e3, dh, models_dir / "true_model_sigma.png",
                       "True model — σ [mS/m]", cmap="seismic", vmin=0.0, vmax=10.0,
                       label="Conductivity [mS/m]")
     print(f"True model : {true_label}")
-    print(f"  -> {models_dir / 'true_epsr.png'}")
+    print(f"  -> {models_dir / 'true_model_epsr.png'}")
 
     # ---- Generate observed data ----
     print(f"\nGenerating observed data ({n_src} sources × {n_freq} freqs × {n_rec} receivers) ...")
@@ -507,10 +507,10 @@ def main() -> None:
             )
             init_label = "config initial_model"
 
-    _save_model_image(epsr_init, dh, models_dir / "init_epsr.png",
+    _save_model_image(epsr_init, dh, models_dir / "#0initial_model_epsr.png",
                       "Initial model — εᵣ", cmap="seismic", vmin=0.0, vmax=10.0,
                       label="Relative permittivity")
-    _save_model_image(sigma_init * 1e3, dh, models_dir / "init_sigma.png",
+    _save_model_image(sigma_init * 1e3, dh, models_dir / "#0initial_model_sigma.png",
                       "Initial model — σ [mS/m]", cmap="seismic", vmin=0.0, vmax=10.0,
                       label="Conductivity [mS/m]")
     print(f"\nInitial model: {init_label}")
@@ -522,16 +522,16 @@ def main() -> None:
                   extras: dict) -> None:
         L2 = extras.get("L2", float("nan"))
         _live_misfit.append(L2)
-        _save_misfit_plot(_live_misfit, misfit_dir / "misfit_curve.png",
+        _save_misfit_plot(_live_misfit, misfit_dir / "#Output_L2_ratio_curve.png",
                           max_iter=inv_cfg.get("max_iter", 20))
 
         # -- Updated models --
         _save_model_image(
-            epsr_it, dh, models_dir / f"iter_{it:04d}_epsr.png",
+            epsr_it, dh, models_dir / f"000Output_model_at_iteration={it:04d}_epsr.png",
             f"Recovered εᵣ — iter {it}  L2={L2:.3e}",
             cmap="seismic", vmin=0.0, vmax=10.0, label="Relative permittivity")
         _save_model_image(
-            sigma_it * 1e3, dh, models_dir / f"iter_{it:04d}_sigma.png",
+            sigma_it * 1e3, dh, models_dir / f"000Output_model_at_iteration={it:04d}_sigma.png",
             f"Recovered σ [mS/m] — iter {it}  L2={L2:.3e}",
             cmap="seismic", vmin=0.0, vmax=10.0, label="Conductivity [mS/m]")
 
@@ -540,11 +540,11 @@ def main() -> None:
         g_s = extras.get("grad_sigma")
         if g_e is not None:
             _save_diverging_image(
-                g_e, dh, grad_dir / f"iter_{it:04d}_grad_epsr.png",
+                g_e, dh, grad_dir / f"02grad_iteration_{n_freq}_iter={it:04d}_epsr.png",
                 f"Gradient εᵣ — iter {it}", label="∂L/∂εᵣ")
         if g_s is not None:
             _save_diverging_image(
-                g_s, dh, grad_dir / f"iter_{it:04d}_grad_sigma.png",
+                g_s, dh, grad_dir / f"02grad_iteration_{n_freq}_iter={it:04d}_sigma.png",
                 f"Gradient σ — iter {it}", label="∂L/∂σ")
 
         # -- Pseudo-Hessian diagonal (non-negative → sequential cmap) --
@@ -552,12 +552,12 @@ def main() -> None:
         h_s = extras.get("hess_sigma")
         if h_e is not None:
             _save_model_image(
-                h_e, dh, hess_dir / f"iter_{it:04d}_hess_epsr.png",
+                h_e, dh, hess_dir / f"03HESS_iteration_{n_freq}_{it:04d}_epsr.png",
                 f"Pseudo-Hessian εᵣ — iter {it}",
                 cmap="inferno", label="|u|²·ω⁴")
         if h_s is not None:
             _save_model_image(
-                h_s, dh, hess_dir / f"iter_{it:04d}_hess_sigma.png",
+                h_s, dh, hess_dir / f"03HESS_iteration_{n_freq}_{it:04d}_sigma.png",
                 f"Pseudo-Hessian σ — iter {it}",
                 cmap="inferno", label="|u|²·ω²")
 
@@ -566,11 +566,11 @@ def main() -> None:
         d_s = extras.get("dir_sigma")
         if d_e is not None:
             _save_diverging_image(
-                d_e, dh, sdir_dir / f"iter_{it:04d}_dir_epsr.png",
+                d_e, dh, sdir_dir / f"04Hgrad_iteration_{it:04d}_epsr.png",
                 f"Search direction εᵣ — iter {it}", label="p_εᵣ")
         if d_s is not None:
             _save_diverging_image(
-                d_s, dh, sdir_dir / f"iter_{it:04d}_dir_sigma.png",
+                d_s, dh, sdir_dir / f"04Hgrad_iteration_{it:04d}_sigma.png",
                 f"Search direction σ — iter {it}", label="p_σ")
 
         # -- Tikhonov regularisation term (diverging; epsr term is usually zero) --
@@ -578,11 +578,11 @@ def main() -> None:
         t_s = extras.get("tikh_sigma")
         if t_e is not None and np.any(t_e != 0):
             _save_diverging_image(
-                t_e, dh, tikh_dir / f"iter_{it:04d}_tikh_epsr.png",
+                t_e, dh, tikh_dir / f"05Tikhonov_iter={it:04d}_epsr.png",
                 f"Tikhonov εᵣ — iter {it}", label="Tikh εᵣ")
         if t_s is not None:
             _save_diverging_image(
-                t_s, dh, tikh_dir / f"iter_{it:04d}_tikh_sigma.png",
+                t_s, dh, tikh_dir / f"05Tikhonov_iter={it:04d}_sigma.png",
                 f"Tikhonov σ — iter {it}", label="Tikh σ")
 
         print(f"  [Callback] iter {it:04d}: saved model/grad/hess/dir/tikh images"
@@ -609,6 +609,7 @@ def main() -> None:
         grid_style=grid_style,
         iter_callback=_callback,
     )
+    n_iters = len(history["misfit"])
 
     # ---- Save final model ----
     final_path = models_dir / "final_result.npz"
@@ -618,15 +619,17 @@ def main() -> None:
              misfit=np.array(history["misfit"]))
     print(f"\nFinal model  -> {final_path}")
 
-    _save_model_image(epsr_rec, dh, models_dir / "final_epsr.png",
+    _save_model_image(epsr_rec, dh,
+                      models_dir / f"#Output_FINAL_Converged_Models_at_iteration={n_iters:04d}_epsr.png",
                       "Recovered εᵣ (final)", cmap="seismic", vmin=0.0, vmax=10.0,
                       label="Relative permittivity")
-    _save_model_image(sigma_rec * 1e3, dh, models_dir / "final_sigma.png",
+    _save_model_image(sigma_rec * 1e3, dh,
+                      models_dir / f"#Output_FINAL_Converged_Models_at_iteration={n_iters:04d}_sigma.png",
                       "Recovered σ [mS/m] (final)", cmap="seismic", vmin=0.0, vmax=10.0,
                       label="Conductivity [mS/m]")
 
     # ---- Misfit plot ----
-    misfit_path = misfit_dir / "misfit_curve.png"
+    misfit_path = misfit_dir / "#Output_L2_ratio_curve.png"
     np.savez(misfit_dir / "misfit_history.npz",
              misfit=np.array(history["misfit"]),
              step=np.array(history["step"]))
@@ -635,7 +638,6 @@ def main() -> None:
     # ---- Log ----
     t_end    = datetime.datetime.now()
     log_path = logs_dir / "run_log.txt"
-    n_iters  = len(history["misfit"])
     with open(log_path, "w", encoding="utf-8") as f:
         f.write("rfdfwi FWI run log\n")
         f.write("=" * 50 + "\n")
