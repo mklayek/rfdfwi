@@ -38,7 +38,9 @@ Matches MATLAB RFDFWI.m + grad_obj_MKLnew.m + ass_grad_TEMKLnew.m:
 
   - Multi-frequency adjoint-state gradient (GPRFM 10 discrete or custom)
   - Tikhonov Laplacian regularisation  (LAMBDA_1 for sigma, LAMBDA_2 for epsr)
-  - Armijo backtracking line search
+  - L-BFGS search direction (MATLAB LBFGS_TEmNEW.m) with Hessian-preconditioned H0
+  - Wolfe line search with bracket bisection (MATLAB wolfe_TENEW.m)
+  - Steepest descent fallback on first iteration or non-descent reset
   - Convergence: ratio = L2 / L2[0] <= conv_ratio  (MATLAB: 5e-5)
 
 Data convention
@@ -633,10 +635,13 @@ def run_inversion(
 
     Algorithm per iteration:
         1. Compute adjoint-state gradient + L2 misfit
-        2. Add Tikhonov regularisation to gradient
-        3. Armijo backtracking line search (MATLAB wolfe_TENEW style)
-        4. Model update + bounds projection
-        5. Convergence check: L2 / L2[0] <= conv_ratio
+        2. Add Tikhonov regularisation + gradient scaling
+        3. Search direction: L-BFGS (with Hessian preconditioner H0) or
+           steepest descent fallback (iter 1, or non-descent reset)
+        4. Wolfe line search (MATLAB wolfe_TENEW.m style)
+        5. L-BFGS curvature pair update
+        6. Model update + bounds projection
+        7. Convergence check: L2 / L2[0] <= conv_ratio
 
     Parameters
     ----------
@@ -685,6 +690,9 @@ def run_inversion(
     stepmax    = int(inv_cfg.get("stepmax",    3))         # MATLAB STEPMAX
     scale_fac  = float(inv_cfg.get("scale_fac", 2.0))     # MATLAB SCALEFAC
     c1_wolfe   = float(inv_cfg.get("c1_wolfe", 1e-4))      # Armijo C1
+    c2_wolfe   = float(inv_cfg.get("c2_wolfe", 0.9))       # Wolfe curvature constant
+    nlbfgs     = int(inv_cfg.get("nlbfgs", 5))              # L-BFGS memory length
+    use_lbfgs  = bool(inv_cfg.get("use_lbfgs", True))       # enable L-BFGS
     conv_ratio = float(inv_cfg.get("conv_ratio", 5e-5))    # MATLAB convergence ratio
     patience     = int(inv_cfg.get("patience",     5))   # early-stop window (iters)
     warmup_iters = int(inv_cfg.get("warmup_iters", 3))   # iters to skip before checking
@@ -742,8 +750,14 @@ def run_inversion(
     print(f"  LAMBDA_1   : {lambda1}  |  LAMBDA_2: {lambda2}")
     print(f"  sigma0     : {sigma0:.3e}  |  beta_sigma={beta_sigma}, beta_epsr={beta_epsr}")
     print(f"  STEPMAX    : {stepmax}  |  SCALEFAC={scale_fac}  |  C1={c1_wolfe:.1e}")
+    print(f"  C2_wolfe   : {c2_wolfe}  |  nlbfgs={nlbfgs}  |  use_lbfgs={use_lbfgs}")
     print(f"  Patience   : {patience}  (early stop if no decrease for {patience} iters)")
     print(f"  Warmup     : {warmup_iters}  (first {warmup_iters} iters excluded from early-stop check)")
+
+    # ---- L-BFGS curvature history ----
+    s_history: list[tuple[np.ndarray, np.ndarray]] = []
+    y_history: list[tuple[np.ndarray, np.ndarray]] = []
+    rho_history: list[float] = []
 
     # ---- Iteration loop ----
     for it in range(max_iter):
@@ -781,94 +795,114 @@ def run_inversion(
                       f"{', '.join(f'{v:.4e}' for v in recent)}).")
                 break
 
+        print()
+
         # ---- Tikhonov regularisation (added to gradient) ----
         tikh_s = tikhonov_sigma(sigma, dh, lambda1, beta_sigma, sigma0)
         tikh_e = tikhonov_epsr(epsr,  dh, lambda2, beta_epsr)
         g_sigma = grad_sigma + tikh_s
         g_epsr  = grad_epsr  + tikh_e
 
-        # Scale gradients to physical parameter space (MATLAB scale_grad_TE convention)
+        # ---- Gradient scaling (MATLAB scale_grad_TE convention) ----
         g_sigma = scale_gradient(g_sigma, beta_sigma * sigma0)
         g_epsr  = scale_gradient(g_epsr,  beta_epsr * EPS0)
 
-        # ---- Hessian preconditioning + search direction (interior cells only) ----
-        # PML cells have amplified |u|² → Hessian up to 100× larger than interior.
-        # Masking to interior prevents PML from dominating normalization and
-        # squashing interior updates.
-        int_s = np.s_[npml:nz-npml, npml:nx-npml]   # interior slice
-        H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
-        H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
-        eps_H   = 0.01           # 1 % water-level on normalised Hessian
+        # ---- Search direction ----
+        int_s = np.s_[npml:nz-npml, npml:nx-npml]
 
-        # Compute direction for interior only; leave PML cells at zero
-        dir_epsr  = np.zeros((nz, nx), dtype=np.float64)
-        dir_sigma = np.zeros((nz, nx), dtype=np.float64)
-        dir_epsr[int_s]  = -g_epsr[int_s]  / (hess_epsr[int_s]  / H_max_e + eps_H)
-        dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] / H_max_s + eps_H)
+        if use_lbfgs and len(s_history) > 0:
+            dir_epsr, dir_sigma = lbfgs_direction(
+                g_epsr, g_sigma, hess_epsr, hess_sigma,
+                s_history, y_history, rho_history,
+                int_s, eps_H=0.01,
+            )
+            print(f"  [L-BFGS] {len(s_history)} curvature pair(s)")
+        else:
+            # Steepest descent with Hessian preconditioning (iter 1 or no history)
+            H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
+            H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
+            eps_H = 0.01
+            dir_epsr  = np.zeros((nz, nx), dtype=np.float64)
+            dir_sigma = np.zeros((nz, nx), dtype=np.float64)
+            dir_epsr[int_s]  = -g_epsr[int_s] / (hess_epsr[int_s] / H_max_e + eps_H)
+            dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] / H_max_s + eps_H)
+            d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
+            d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
+            dir_epsr /= d_max_e
+            dir_sigma /= d_max_s
+            print(f"  [Steepest descent] H_max_e={H_max_e:.3e}  H_max_s={H_max_s:.3e}")
 
-        # Normalize by interior max (PML cells are already zero)
-        d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
-        d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
-        dir_epsr  /= d_max_e
-        dir_sigma /= d_max_s
-        print(f"\n  Hessian precond [interior {nz-2*npml}×{nx-2*npml}]:"
-              f"  H_max_e={H_max_e:.3e}  H_max_s={H_max_s:.3e}  eps_H={eps_H}"
-              f"  d_max_e={d_max_e:.3e}  d_max_s={d_max_s:.3e}"
-              f"\n  |d_epsr|_int_max={np.max(np.abs(dir_epsr[int_s])):.3e}"
-              f"  |d_sigma|_int_max={np.max(np.abs(dir_sigma[int_s])):.3e}")
+        # ---- Descent check (MATLAB check_descent_TE.m) ----
+        descent_dot = float(np.sum(g_epsr * dir_epsr) +
+                            np.sum(g_sigma * dir_sigma))
+        if descent_dot >= 0:
+            print(f"  [WARNING] Non-descent direction (dot={descent_dot:.3e})"
+                  f" — resetting L-BFGS, using steepest descent")
+            s_history.clear()
+            y_history.clear()
+            rho_history.clear()
+            H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
+            H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
+            dir_epsr  = np.zeros((nz, nx), dtype=np.float64)
+            dir_sigma = np.zeros((nz, nx), dtype=np.float64)
+            dir_epsr[int_s]  = -g_epsr[int_s] / (hess_epsr[int_s] / H_max_e + 0.01)
+            dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] / H_max_s + 0.01)
+            d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
+            d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
+            dir_epsr /= d_max_e
+            dir_sigma /= d_max_s
 
-        # ---- Per-parameter step sizes (reset each iter) ----
-        # With unit-max normalized directions, step_e limits max Δεᵣ per iter
-        # and step_s limits max Δσ per iter.  Separate sizes are needed because
-        # εᵣ range (~7) and σ range (~0.02 S/m) differ by ~350×.
+        # ---- Wolfe line search (MATLAB wolfe_TENEW.m) ----
         step_e = step_init_e
         step_s = step_init_s
-        print(f"  step_e={step_e:.3e} (max Δεᵣ per iter)"
-              f"  step_s={step_s:.3e} (max Δσ per iter)")
+        print(f"  step_e={step_e:.3e}  step_s={step_s:.3e}")
 
-        # ---- Armijo backtracking — simple sufficient decrease ----
-        # Using simple decrease (L2_try < phi0) avoids scale-mismatch issues
-        # between raw gradient (~1e20) and unit-normalised direction (~1.0).
-        phi0     = L2
-        accepted = False
-
-        for ls in range(stepmax):
-            e_try = epsr  + step_e * dir_epsr
-            s_try = sigma + step_s * dir_sigma
-            e_try, s_try = apply_bounds(e_try, s_try, bounds)
-
-            d_try = compute_forward_data(
-                e_try, s_try, dh, npml, a0_cfs, freqs,
-                sources, receivers, grid_style=grid_style, n_workers=n_workers,
+        step_e_out, step_s_out, epsr_new, sigma_new, L2_new, \
+            g_e_new, g_s_new = wolfe_linesearch(
+                epsr, sigma, dir_epsr, dir_sigma,
+                g_epsr, g_sigma, L2, d_obs,
+                dh, npml, a0_cfs, freqs, sources, receivers, bounds,
+                grid_style=grid_style, n_workers=n_workers,
+                step_init_e=step_e, step_init_s=step_s,
+                stepmax=stepmax, scale_fac=scale_fac,
+                c1=c1_wolfe, c2=c2_wolfe,
+                beta_sigma=beta_sigma, beta_epsr=beta_epsr,
+                sigma0=sigma0, lambda1=lambda1, lambda2=lambda2,
             )
-            L2_try = 0.5 * float(np.sum(np.abs(d_try - d_obs) ** 2))
-            ok = L2_try < phi0
-            print(f"    [ls {ls+1}/{stepmax}] step_e={step_e:.3e} step_s={step_s:.3e}"
-                  f"  L2_try={L2_try:.6e}  Δ={phi0-L2_try:+.3e}"
-                  f"  {'ACCEPT' if ok else 'reject'}")
 
-            if ok:
-                accepted = True
-                break
-
-            step_e /= scale_fac
-            step_s /= scale_fac
-
-        if not accepted:
-            print(f"  [WARNING] No decrease after {stepmax} trials"
-                  f" — accepting last step_e={step_e:.3e}  step_s={step_s:.3e}")
+        # ---- L-BFGS curvature update ----
+        if use_lbfgs:
+            s_e = (epsr_new - epsr)[int_s].copy()
+            s_s = (sigma_new - sigma)[int_s].copy()
+            y_e = (g_e_new - g_epsr)[int_s].copy()
+            y_s = (g_s_new - g_sigma)[int_s].copy()
+            ys_dot = float(np.sum(y_e * s_e) + np.sum(y_s * s_s))
+            if abs(ys_dot) > 1e-30:
+                rho = 1.0 / ys_dot
+                s_history.append((s_e, s_s))
+                y_history.append((y_e, y_s))
+                rho_history.append(rho)
+                if len(s_history) > nlbfgs:
+                    s_history.pop(0)
+                    y_history.pop(0)
+                    rho_history.pop(0)
+                print(f"  [L-BFGS] curvature update OK (ys={ys_dot:.3e}, "
+                      f"rho={rho:.3e}, pairs={len(s_history)})")
+            else:
+                print(f"  [L-BFGS] skip curvature update (ys={ys_dot:.3e} too small)")
 
         # ---- Apply update ----
-        delta_epsr  = step_e * dir_epsr
-        delta_sigma = step_s * dir_sigma
-        epsr  = epsr  + delta_epsr
-        sigma = sigma + delta_sigma
+        delta_epsr  = epsr_new - epsr
+        delta_sigma = sigma_new - sigma
+        epsr  = epsr_new
+        sigma = sigma_new
         epsr, sigma = apply_bounds(epsr, sigma, bounds)
-        history["step"].append(step_e)   # store epsr step as reference
-        print(f"  update: |Δε|_max={np.max(np.abs(delta_epsr)):.3e}"
-              f"  |Δσ|_max={np.max(np.abs(delta_sigma)):.3e}"
-              f"  εᵣ=[{epsr[int_s].min():.2f},{epsr[int_s].max():.2f}]"
-              f"  σ=[{sigma[int_s].min():.2e},{sigma[int_s].max():.2e}]")
+        history["step"].append(step_e_out)
+        print(f"  update: |De|_max={np.max(np.abs(delta_epsr)):.3e}"
+              f"  |Ds|_max={np.max(np.abs(delta_sigma)):.3e}"
+              f"  er=[{epsr[int_s].min():.2f},{epsr[int_s].max():.2f}]"
+              f"  s=[{sigma[int_s].min():.2e},{sigma[int_s].max():.2e}]"
+              f"  L2_new={L2_new:.6e}")
 
         # ---- Per-iteration callback ----
         if iter_callback is not None:
@@ -884,7 +918,7 @@ def run_inversion(
                 "reg_grad_sigma": g_sigma,
                 "dir_epsr":       dir_epsr,
                 "dir_sigma":      dir_sigma,
-                "step":           step_e,
+                "step":           step_e_out,
                 "delta_epsr":     delta_epsr,
                 "delta_sigma":    delta_sigma,
             }
