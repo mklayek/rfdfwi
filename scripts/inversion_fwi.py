@@ -330,6 +330,23 @@ def tikhonov_epsr(
 
 
 # ---------------------------------------------------------------------------
+# Gradient scaling
+# ---------------------------------------------------------------------------
+
+def scale_gradient(
+    grad: np.ndarray,
+    scale_factor: float,
+) -> np.ndarray:
+    """Scale gradient by a physical parameter factor (MATLAB scale_grad_TE.m).
+
+    In MATLAB, gradients are scaled to match parameter space:
+        grad_sigma  *= beta_sig * sig0
+        grad_epsilon *= beta_eps * eps0
+    """
+    return scale_factor * grad
+
+
+# ---------------------------------------------------------------------------
 # Bounds
 # ---------------------------------------------------------------------------
 
@@ -516,6 +533,10 @@ def run_inversion(
         tikh_e = tikhonov_epsr(epsr,  dh, lambda2, beta_epsr)
         g_sigma = grad_sigma + tikh_s
         g_epsr  = grad_epsr  + tikh_e
+
+        # Scale gradients to physical parameter space (MATLAB scale_grad_TE convention)
+        g_sigma = scale_gradient(g_sigma, beta_sigma * sigma0)
+        g_epsr  = scale_gradient(g_epsr,  beta_epsr * EPS0)
 
         # ---- Hessian preconditioning + search direction (interior cells only) ----
         # PML cells have amplified |u|² → Hessian up to 100× larger than interior.
