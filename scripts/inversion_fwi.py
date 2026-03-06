@@ -436,6 +436,170 @@ def lbfgs_direction(
 
 
 # ---------------------------------------------------------------------------
+# Wolfe line search
+# ---------------------------------------------------------------------------
+
+def wolfe_linesearch(
+    epsr: np.ndarray,
+    sigma: np.ndarray,
+    dir_epsr: np.ndarray,
+    dir_sigma: np.ndarray,
+    grad_epsr: np.ndarray,
+    grad_sigma: np.ndarray,
+    L2_current: float,
+    d_obs: np.ndarray,
+    dh: float,
+    npml: int,
+    a0_cfs: float,
+    freqs: np.ndarray,
+    sources: list,
+    receivers: list,
+    bounds: dict,
+    grid_style: str = "stag1",
+    n_workers: int = 1,
+    step_init_e: float = 1.0,
+    step_init_s: float = 1.0,
+    stepmax: int = 12,
+    scale_fac: float = 2.0,
+    c1: float = 1e-4,
+    c2: float = 0.9,
+    beta_sigma: float = 1.0,
+    beta_epsr: float = 1.0,
+    sigma0: float = 5.6e-3,
+    lambda1: float = 2e-4,
+    lambda2: float = 0.0,
+    verbose: bool = True,
+) -> tuple[float, float, np.ndarray, np.ndarray, float,
+           np.ndarray, np.ndarray]:
+    """
+    Wolfe line search matching MATLAB wolfe_TENEW.m.
+
+    Finds step multiplier alpha satisfying:
+        Condition 1 (sufficient decrease): L2(alpha) <= L2(0) + c1*alpha*gs0
+        Condition 2 (curvature): gts(alpha) >= c2*gs0
+
+    Uses bracket bisection: track [alpha_L, alpha_R].
+
+    Parameters
+    ----------
+    epsr, sigma : (nz, nx)  Current model arrays.
+    dir_epsr, dir_sigma : (nz, nx)  Search direction (descent).
+    grad_epsr, grad_sigma : (nz, nx)  Scaled+regularised gradients at current point.
+    L2_current : float  Current misfit value.
+    d_obs : (n_src, n_freq, n_rec)  Observed data.
+    dh : float  Grid spacing [m].
+    npml : int  PML thickness [cells].
+    a0_cfs : float  CFS-PML sigma_max.
+    freqs : (nf,)  Frequency array [Hz].
+    sources : list of (ix, iz)  Source positions.
+    receivers : list of (ix, iz)  Receiver positions.
+    bounds : dict  Parameter bounds (epsr_min, epsr_max, sigma_min, sigma_max).
+    grid_style : str  "stag1" or "stag2".
+    n_workers : int  Parallel workers for source solves.
+    step_init_e : float  Base step size for epsr.
+    step_init_s : float  Base step size for sigma.
+    stepmax : int  Maximum number of line search trials.
+    scale_fac : float  Bracket expansion / bisection factor.
+    c1 : float  Sufficient decrease (Armijo) constant.
+    c2 : float  Curvature condition constant.
+    beta_sigma : float  Tikhonov scaling for sigma.
+    beta_epsr : float  Tikhonov scaling for epsr.
+    sigma0 : float  Reference conductivity for Tikhonov.
+    lambda1 : float  Tikhonov weight for sigma.
+    lambda2 : float  Tikhonov weight for epsr.
+    verbose : bool  Print line search progress.
+
+    Returns
+    -------
+    alpha_e, alpha_s : float  Accepted step sizes for epsilon and sigma.
+    epsr_new, sigma_new : ndarray  Updated model arrays.
+    L2_new : float  Misfit at accepted step.
+    grad_epsr_new, grad_sigma_new : ndarray  Scaled+regularised gradients at
+        accepted step (needed for L-BFGS curvature update).
+    """
+    # Directional derivative at current point: gs0 = <grad, dir>
+    gs0 = float(np.sum(grad_epsr * dir_epsr) +
+                np.sum(grad_sigma * dir_sigma))
+
+    alpha = 1.0
+    alpha_L = 0.0
+    alpha_R = float("inf")
+
+    best_epsr = epsr.copy()
+    best_sigma = sigma.copy()
+    best_L2 = L2_current
+    best_grad_e = grad_epsr.copy()
+    best_grad_s = grad_sigma.copy()
+    best_alpha = 0.0
+
+    for ls in range(stepmax):
+        # Trial model
+        e_try = epsr + alpha * step_init_e * dir_epsr
+        s_try = sigma + alpha * step_init_s * dir_sigma
+        e_try, s_try = apply_bounds(e_try, s_try, bounds)
+
+        # Evaluate gradient at trial point (needed for curvature condition)
+        g_e_raw, g_s_raw, _, _, _, L2_try = compute_gradient(
+            e_try, s_try, dh, npml, a0_cfs, freqs,
+            sources, receivers, d_obs,
+            grid_style=grid_style, n_workers=n_workers, verbose=False,
+        )
+
+        # Add Tikhonov and scale (same pipeline as main loop)
+        g_s_try = g_s_raw + tikhonov_sigma(s_try, dh, lambda1, beta_sigma, sigma0)
+        g_e_try = g_e_raw + tikhonov_epsr(e_try, dh, lambda2, beta_epsr)
+        g_s_try = scale_gradient(g_s_try, beta_sigma * sigma0)
+        g_e_try = scale_gradient(g_e_try, beta_epsr * EPS0)
+
+        # Directional derivative at trial point
+        gts = float(np.sum(g_e_try * dir_epsr) +
+                     np.sum(g_s_try * dir_sigma))
+
+        if verbose:
+            print(f"    [wolfe {ls+1}/{stepmax}] alpha={alpha:.4e}"
+                  f"  L2={L2_try:.6e}  gs0={gs0:.3e}  gts={gts:.3e}",
+                  end="")
+
+        # Track best decrease
+        if L2_try < best_L2:
+            best_epsr = e_try.copy()
+            best_sigma = s_try.copy()
+            best_L2 = L2_try
+            best_grad_e = g_e_try.copy()
+            best_grad_s = g_s_try.copy()
+            best_alpha = alpha
+
+        # Check Wolfe conditions
+        if L2_try > L2_current + c1 * alpha * gs0:
+            alpha_R = alpha
+            if verbose:
+                print("  [C1 fail]")
+        elif gts < c2 * gs0:
+            alpha_L = alpha
+            if verbose:
+                print("  [C2 fail]")
+        else:
+            if verbose:
+                print("  [WOLFE OK]")
+            return (alpha * step_init_e, alpha * step_init_s,
+                    e_try, s_try, L2_try, g_e_try, g_s_try)
+
+        # Update bracket
+        if alpha_R < float("inf"):
+            alpha = (alpha_L + alpha_R) / scale_fac
+        else:
+            alpha = scale_fac * alpha
+
+    # Fall back to best found
+    if verbose:
+        print(f"    [wolfe] max trials — using best alpha={best_alpha:.4e}"
+              f"  L2={best_L2:.6e}")
+    return (best_alpha * step_init_e, best_alpha * step_init_s,
+            best_epsr, best_sigma, best_L2,
+            best_grad_e, best_grad_s)
+
+
+# ---------------------------------------------------------------------------
 # Bounds
 # ---------------------------------------------------------------------------
 
