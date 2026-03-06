@@ -43,7 +43,7 @@ inversion:
   step_type: linesearch
   step_init: 1.0           # fallback if step_init_epsr/sigma not set
   step_init_epsr: 1.0      # was 0.5; Wolfe finds proper step size
-  step_init_sigma: 1.0e-3  # was 5e-4; Wolfe finds proper step size
+  step_init_sigma: 1.0     # match MATLAB single-alpha; Hessian handles scaling
   stepmax: 12           # max Wolfe line-search trials (MATLAB STEPMAX)
   scale_fac: 2.0        # bracket expansion/bisection factor (MATLAB SCALEFAC)
   c1_wolfe: 1.0e-4      # Armijo C1 sufficient-decrease constant

@@ -16,12 +16,12 @@
 #   Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite
 #   difference frequency domain full waveform inversion of GPR data: A guide
 #   for sedimentary architecture modeling. Pure and Applied Geophysics, 181,
-#   2107–2130. https://doi.org/10.1007/s00024-024-03520-1
+#   2107-2130. https://doi.org/10.1007/s00024-024-03520-1
 #
 # Copyright © Mrinal Kanti Layek
-# Original MATLAB written during PhD @ 2018–19:
+# Original MATLAB written during PhD @ 2018-19:
 #   Mrinal Kanti Layek, Senior Research Fellow (Geophysics)
-#   Department of Geology and Geophysics, IIT Kharagpur – 721302, INDIA
+#   Department of Geology and Geophysics, IIT Kharagpur - 721302, INDIA
 #   layek.mk@gmail.com | https://www.researchgate.net/profile/Mrinal_Layek
 #
 # Python code written during Postdoc @ March 2026:
@@ -257,20 +257,23 @@ def compute_gradient(
             d_calc[si, fi, :] = dc
             L2_total += 0.5 * float(np.sum(np.abs(res) ** 2))
             cu = np.conj(u)
-            grad_epsr  += np.real(omega ** 2 * cu * lam)
-            grad_sigma += np.real(1j * omega  * cu * lam)
+            # Physical constants: dk²/d(epsr) = -MU0*EPS0*omega²,
+            #                      dk²/d(sigma) = MU0*j*omega
+            # Gradient = -Re(conj(lambda)^T * dA/dm * u) per adjoint formula
+            grad_epsr  -= np.real(omega ** 2 * cu * lam) * (MU0 * EPS0)
+            grad_sigma += np.real(1j * omega  * cu * lam) * MU0
             u_sq = np.abs(u) ** 2
-            hess_epsr  += (omega ** 4) * u_sq
-            hess_sigma += (omega ** 2) * u_sq
+            hess_epsr  += (omega ** 4) * (MU0 * EPS0) ** 2 * u_sq
+            hess_sigma += (omega ** 2) * MU0 ** 2 * u_sq
 
         if verbose:
             n_contrib = (fi + 1) * n_src
             ge_rms = float(np.sqrt(np.mean(grad_epsr ** 2))) / n_contrib
             gs_rms = float(np.sqrt(np.mean(grad_sigma ** 2))) / n_contrib
-            print(f"    [freq {fi+1:2d}/{n_freq}] {freq/1e6:.1f} MHz — {n_src} src done  grad/src: ε={ge_rms:.3e}  σ={gs_rms:.3e}")
+            print(f"    [freq {fi+1:2d}/{n_freq}] {freq/1e6:.1f} MHz -- {n_src} src done  grad/src: e={ge_rms:.3e}  s={gs_rms:.3e}")
 
     if verbose:
-        print(f"  gradient done — L2={L2_total:.6e}")
+        print(f"  gradient done -- L2={L2_total:.6e}")
 
     return grad_epsr, grad_sigma, hess_epsr, hess_sigma, d_calc, L2_total
 
@@ -519,9 +522,11 @@ def wolfe_linesearch(
     grad_epsr_new, grad_sigma_new : ndarray  Scaled+regularised gradients at
         accepted step (needed for L-BFGS curvature update).
     """
-    # Directional derivative at current point: gs0 = <grad, dir>
-    gs0 = float(np.sum(grad_epsr * dir_epsr) +
-                np.sum(grad_sigma * dir_sigma))
+    # Directional derivative at current point: gs0 = <grad, step*dir>
+    # The actual search direction includes step_init factors since
+    # trial model is x + alpha * (step_init * dir)
+    gs0 = float(np.sum(grad_epsr * step_init_e * dir_epsr) +
+                np.sum(grad_sigma * step_init_s * dir_sigma))
 
     alpha = 1.0
     alpha_L = 0.0
@@ -547,15 +552,13 @@ def wolfe_linesearch(
             grid_style=grid_style, n_workers=n_workers, verbose=False,
         )
 
-        # Add Tikhonov and scale (same pipeline as main loop)
+        # Add Tikhonov (no separate scaling — physical constants in gradient)
         g_s_try = g_s_raw + tikhonov_sigma(s_try, dh, lambda1, beta_sigma, sigma0)
         g_e_try = g_e_raw + tikhonov_epsr(e_try, dh, lambda2, beta_epsr)
-        g_s_try = scale_gradient(g_s_try, beta_sigma * sigma0)
-        g_e_try = scale_gradient(g_e_try, beta_epsr * EPS0)
 
-        # Directional derivative at trial point
-        gts = float(np.sum(g_e_try * dir_epsr) +
-                     np.sum(g_s_try * dir_sigma))
+        # Directional derivative at trial point (includes step_init factors)
+        gts = float(np.sum(g_e_try * step_init_e * dir_epsr) +
+                     np.sum(g_s_try * step_init_s * dir_sigma))
 
         if verbose:
             print(f"    [wolfe {ls+1}/{stepmax}] alpha={alpha:.4e}"
@@ -594,7 +597,7 @@ def wolfe_linesearch(
 
     # Fall back to best found
     if verbose:
-        print(f"    [wolfe] max trials — using best alpha={best_alpha:.4e}"
+        print(f"    [wolfe] max trials -- using best alpha={best_alpha:.4e}"
               f"  L2={best_L2:.6e}")
     return (best_alpha * step_init_e, best_alpha * step_init_s,
             best_epsr, best_sigma, best_L2,
@@ -686,7 +689,7 @@ def run_inversion(
     sigma0     = float(inv_cfg.get("sigma0",   5.6e-3))   # MATLAB sig0
     step_init  = float(inv_cfg.get("step_init", -1.0))    # <=0 → auto-scale
     step_init_e = float(inv_cfg.get("step_init_epsr",  step_init if step_init > 0 else 0.5))
-    step_init_s = float(inv_cfg.get("step_init_sigma", step_init if step_init > 0 else 5e-4))
+    step_init_s = float(inv_cfg.get("step_init_sigma", step_init if step_init > 0 else 1.0))
     stepmax    = int(inv_cfg.get("stepmax",    3))         # MATLAB STEPMAX
     scale_fac  = float(inv_cfg.get("scale_fac", 2.0))     # MATLAB SCALEFAC
     c1_wolfe   = float(inv_cfg.get("c1_wolfe", 1e-4))      # Armijo C1
@@ -745,10 +748,11 @@ def run_inversion(
 
     print(f"  Grid style : {grid_style}")
     print(f"  Sources    : {n_src}  |  Receivers: {n_rec}")
-    print(f"  Frequencies: {n_freq}  ({freqs[0]/1e6:.0f}–{freqs[-1]/1e6:.0f} MHz)")
+    print(f"  Frequencies: {n_freq}  ({freqs[0]/1e6:.0f}-{freqs[-1]/1e6:.0f} MHz)")
     print(f"  Max iter   : {max_iter}  |  conv_ratio={conv_ratio:.1e}")
     print(f"  LAMBDA_1   : {lambda1}  |  LAMBDA_2: {lambda2}")
     print(f"  sigma0     : {sigma0:.3e}  |  beta_sigma={beta_sigma}, beta_epsr={beta_epsr}")
+    print(f"  step_init  : epsr={step_init_e:.3e}  sigma={step_init_s:.3e}")
     print(f"  STEPMAX    : {stepmax}  |  SCALEFAC={scale_fac}  |  C1={c1_wolfe:.1e}")
     print(f"  C2_wolfe   : {c2_wolfe}  |  nlbfgs={nlbfgs}  |  use_lbfgs={use_lbfgs}")
     print(f"  Patience   : {patience}  (early stop if no decrease for {patience} iters)")
@@ -763,7 +767,7 @@ def run_inversion(
     for it in range(max_iter):
         print(f"\n{'='*60}")
         print(f"[iter {it+1}/{max_iter}] Computing adjoint-state gradient"
-              f"  ({n_src} src × {n_freq} freq) ...")
+              f"  ({n_src} src x {n_freq} freq) ...")
 
         grad_epsr, grad_sigma, hess_epsr, hess_sigma, d_calc, L2 = compute_gradient(
             epsr, sigma, dh, npml, a0_cfs, freqs,
@@ -780,18 +784,18 @@ def run_inversion(
 
         # ---- Convergence ----
         if ratio <= conv_ratio:
-            print("  [CONVERGED — ratio threshold reached]")
+            print("  [CONVERGED -- ratio threshold reached]")
             break
 
         # ---- Early stopping: skip warmup_iters, then check patience-wide window ----
         # Requires at least (warmup_iters + patience) values in history before triggering.
-        # E.g. warmup=3, patience=5 → checks only when iter >= 8, using iters 4–8.
+        # E.g. warmup=3, patience=5 → checks only when iter >= 8, using iters 4-8.
         if len(history["misfit"]) >= warmup_iters + patience:
             recent = history["misfit"][-patience:]   # last `patience` values (post-warmup)
             if all(recent[i] >= recent[i - 1] for i in range(1, patience)):
                 print(f"\n  [EARLY STOP] L2 did not decrease for {patience} consecutive "
                       f"iterations after {warmup_iters}-iter warmup "
-                      f"(iters {len(history['misfit'])-patience+1}–{len(history['misfit'])}: "
+                      f"(iters {len(history['misfit'])-patience+1}-{len(history['misfit'])}: "
                       f"{', '.join(f'{v:.4e}' for v in recent)}).")
                 break
 
@@ -803,9 +807,8 @@ def run_inversion(
         g_sigma = grad_sigma + tikh_s
         g_epsr  = grad_epsr  + tikh_e
 
-        # ---- Gradient scaling (MATLAB scale_grad_TE convention) ----
-        g_sigma = scale_gradient(g_sigma, beta_sigma * sigma0)
-        g_epsr  = scale_gradient(g_epsr,  beta_epsr * EPS0)
+        # NOTE: gradient scaling removed — physical constants (MU0*EPS0,
+        # MU0) are now included directly in compute_gradient()
 
         # ---- Search direction ----
         int_s = np.s_[npml:nz-npml, npml:nx-npml]
@@ -833,11 +836,12 @@ def run_inversion(
             print(f"  [Steepest descent] H_max_e={H_max_e:.3e}  H_max_s={H_max_s:.3e}")
 
         # ---- Descent check (MATLAB check_descent_TE.m) ----
-        descent_dot = float(np.sum(g_epsr * dir_epsr) +
-                            np.sum(g_sigma * dir_sigma))
+        # Must include step_init factors to match Wolfe gs0 calculation
+        descent_dot = float(np.sum(g_epsr * step_init_e * dir_epsr) +
+                            np.sum(g_sigma * step_init_s * dir_sigma))
         if descent_dot >= 0:
             print(f"  [WARNING] Non-descent direction (dot={descent_dot:.3e})"
-                  f" — resetting L-BFGS, using steepest descent")
+                  f" -- resetting L-BFGS, using steepest descent")
             s_history.clear()
             y_history.clear()
             rho_history.clear()

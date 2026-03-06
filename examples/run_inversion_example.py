@@ -478,7 +478,7 @@ def main() -> None:
     print(f"  -> {models_dir / 'true_model_epsr.png'}")
 
     # ---- Generate observed data ----
-    print(f"\nGenerating observed data ({n_src} sources × {n_freq} freqs × {n_rec} receivers) ...")
+    print(f"\nGenerating observed data ({n_src} sources x {n_freq} freqs x {n_rec} receivers) ...")
     d_obs = compute_forward_data(
         true_epsr, true_sigma, dh, npml, a0_cfs, freqs,
         sources, receivers, grid_style=grid_style, n_workers=n_workers,
@@ -597,7 +597,7 @@ def main() -> None:
     # ---- Print run summary ----
     print(f"\nConfig       : {config_path}")
     print(f"Grid style   : {grid_style}")
-    print(f"Domain       : {nx}×{nz}  dh={dh} m")
+    print(f"Domain       : {nx}x{nz}  dh={dh} m")
     print(f"PML          : npml={npml}  a0_cfs={a0_cfs:.2e}")
     print(f"Acquisition  : {n_src} sources, {n_rec} receivers")
     print(f"Frequencies  : {freq_label}")
