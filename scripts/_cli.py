@@ -64,6 +64,8 @@ def add_common_args(
     --stag1                Use stag1 (Hustedt 2004) 9-point CFS-PML stencil (default).
     --stag2                Use stag2 (Layek & Sengupta 2024) 9-point CFS-PML stencil.
     -v / --verbose         Verbose console output.
+    --timestamps           Prepend [YYYY-MM-DD HH:MM:SS] to every console line.
+    --patience N           Early-stop FWI after N non-decreasing misfit iterations.
     """
     parser.add_argument(
         "--config",
@@ -122,5 +124,35 @@ def add_common_args(
         action="store_true",
         default=False,
         help="Print extra diagnostic information during the run.",
+    )
+    parser.add_argument(
+        "--timestamps",
+        action="store_true",
+        default=False,
+        help="Prepend [YYYY-MM-DD HH:MM:SS] timestamp to every console output line.",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Early-stop if L2 misfit does not decrease for N consecutive iterations "
+             "(default: read from config inversion.patience, fallback=5).",
+    )
+    parser.add_argument(
+        "--warmup",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Number of initial iterations to skip before applying early-stop check "
+             "(default: read from config inversion.warmup_iters, fallback=3).",
+    )
+    parser.add_argument(
+        "--step-epsr", type=float, default=None, metavar="S",
+        help="Initial line-search step for εᵣ update (overrides config step_init_epsr).",
+    )
+    parser.add_argument(
+        "--step-sigma", type=float, default=None, metavar="S",
+        help="Initial line-search step for σ update (overrides config step_init_sigma).",
     )
     return parser

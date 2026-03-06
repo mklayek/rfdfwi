@@ -410,6 +410,8 @@ def run_inversion(
     beta_epsr  = float(reg.get("beta_epsr",    1.0))
     sigma0     = float(inv_cfg.get("sigma0",   5.6e-3))   # MATLAB sig0
     step_init  = float(inv_cfg.get("step_init", -1.0))    # <=0 → auto-scale
+    step_init_e = float(inv_cfg.get("step_init_epsr",  step_init if step_init > 0 else 0.5))
+    step_init_s = float(inv_cfg.get("step_init_sigma", step_init if step_init > 0 else 5e-4))
     stepmax    = int(inv_cfg.get("stepmax",    3))         # MATLAB STEPMAX
     scale_fac  = float(inv_cfg.get("scale_fac", 2.0))     # MATLAB SCALEFAC
     c1_wolfe   = float(inv_cfg.get("c1_wolfe", 1e-4))      # Armijo C1
@@ -541,23 +543,24 @@ def run_inversion(
               f"\n  |d_epsr|_int_max={np.max(np.abs(dir_epsr[int_s])):.3e}"
               f"  |d_sigma|_int_max={np.max(np.abs(dir_sigma[int_s])):.3e}")
 
-        # ---- Initial step size ----
-        # Always reset to avoid permanent shrinkage from failed line searches
-        step = step_init if step_init > 0 else 1.0
-        print(f"  step={step:.3e} [reset per-iter, unit-normalised direction]")
+        # ---- Per-parameter step sizes (reset each iter) ----
+        # With unit-max normalized directions, step_e limits max Δεᵣ per iter
+        # and step_s limits max Δσ per iter.  Separate sizes are needed because
+        # εᵣ range (~7) and σ range (~0.02 S/m) differ by ~350×.
+        step_e = step_init_e
+        step_s = step_init_s
+        print(f"  step_e={step_e:.3e} (max Δεᵣ per iter)"
+              f"  step_s={step_s:.3e} (max Δσ per iter)")
 
-        # ---- Armijo backtracking line search ----
-        # Descent slope in the normalised direction space: d = -g/H/norm,
-        # so g·d ~ -||d||² (consistent units; avoids mixing raw gradient ~1e20
-        # with unit-normalised direction ~1, which made armijo_rhs >> L2).
-        descent_slope = -(float(np.sum(dir_epsr**2)) + float(np.sum(dir_sigma**2)))
-        phi0       = L2
-        armijo_rhs = -c1_wolfe * step * descent_slope   # positive
-        accepted   = False
+        # ---- Armijo backtracking — simple sufficient decrease ----
+        # Using simple decrease (L2_try < phi0) avoids scale-mismatch issues
+        # between raw gradient (~1e20) and unit-normalised direction (~1.0).
+        phi0     = L2
+        accepted = False
 
         for ls in range(stepmax):
-            e_try = epsr  + step * dir_epsr
-            s_try = sigma + step * dir_sigma
+            e_try = epsr  + step_e * dir_epsr
+            s_try = sigma + step_s * dir_sigma
             e_try, s_try = apply_bounds(e_try, s_try, bounds)
 
             d_try = compute_forward_data(
@@ -565,30 +568,33 @@ def run_inversion(
                 sources, receivers, grid_style=grid_style, n_workers=n_workers,
             )
             L2_try = 0.5 * float(np.sum(np.abs(d_try - d_obs) ** 2))
-            ok = L2_try <= phi0 - armijo_rhs
-            print(f"    [ls {ls+1}/{stepmax}] step={step:.3e}"
-                  f"  L2_try={L2_try:.6e}  decrease={phi0-L2_try:.3e}"
-                  f"  Armijo={'YES' if ok else 'NO'}")
+            ok = L2_try < phi0
+            print(f"    [ls {ls+1}/{stepmax}] step_e={step_e:.3e} step_s={step_s:.3e}"
+                  f"  L2_try={L2_try:.6e}  Δ={phi0-L2_try:+.3e}"
+                  f"  {'ACCEPT' if ok else 'reject'}")
 
             if ok:
                 accepted = True
                 break
 
-            step /= scale_fac
-            armijo_rhs /= scale_fac
+            step_e /= scale_fac
+            step_s /= scale_fac
 
         if not accepted:
-            print(f"  [WARNING] No sufficient decrease after {stepmax} trials"
-                  f" — accepting step={step:.3e} anyway")
+            print(f"  [WARNING] No decrease after {stepmax} trials"
+                  f" — accepting last step_e={step_e:.3e}  step_s={step_s:.3e}")
 
         # ---- Apply update ----
-        delta_epsr  = step * dir_epsr
-        delta_sigma = step * dir_sigma
+        delta_epsr  = step_e * dir_epsr
+        delta_sigma = step_s * dir_sigma
         epsr  = epsr  + delta_epsr
         sigma = sigma + delta_sigma
         epsr, sigma = apply_bounds(epsr, sigma, bounds)
-        history["step"].append(step)
-        print(f"  update: |Δε|_max={np.max(np.abs(delta_epsr)):.3e}  |Δσ|_max={np.max(np.abs(delta_sigma)):.3e}  epsr=[{epsr.min():.2f},{epsr.max():.2f}]")
+        history["step"].append(step_e)   # store epsr step as reference
+        print(f"  update: |Δε|_max={np.max(np.abs(delta_epsr)):.3e}"
+              f"  |Δσ|_max={np.max(np.abs(delta_sigma)):.3e}"
+              f"  εᵣ=[{epsr[int_s].min():.2f},{epsr[int_s].max():.2f}]"
+              f"  σ=[{sigma[int_s].min():.2e},{sigma[int_s].max():.2e}]")
 
         # ---- Per-iteration callback ----
         if iter_callback is not None:
@@ -604,7 +610,7 @@ def run_inversion(
                 "reg_grad_sigma": g_sigma,
                 "dir_epsr":       dir_epsr,
                 "dir_sigma":      dir_sigma,
-                "step":           step,
+                "step":           step_e,
                 "delta_epsr":     delta_epsr,
                 "delta_sigma":    delta_sigma,
             }

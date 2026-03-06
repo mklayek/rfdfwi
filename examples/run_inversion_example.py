@@ -91,18 +91,29 @@ _matplotlib_imported = False
 
 class _TeeLogger:
     """Duplicate stdout to a log file, prepending timestamps to file lines."""
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, timestamps: bool = False) -> None:
         self._file = open(path, "w", encoding="utf-8")
         self._stdout = sys.stdout
+        self._timestamps = timestamps
+        self._at_sol = True   # True when next write is at start of a new line
         sys.stdout = self
 
     def write(self, msg: str) -> None:
-        self._stdout.write(msg)
-        if msg and msg != "\n":
+        if not msg:
+            return
+        # Only prepend timestamp at the very start of a new line
+        if self._at_sol and msg != "\n":
             ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self._file.write(f"[{ts}] {msg}" if not msg.startswith("\n") else msg)
+            prefix = f"[{ts}] "
+            self._file.write(prefix + msg)
+            if self._timestamps:
+                self._stdout.write(prefix + msg)
+            else:
+                self._stdout.write(msg)
         else:
+            self._stdout.write(msg)
             self._file.write(msg)
+        self._at_sol = msg.endswith("\n")
         self._file.flush()
 
     def flush(self) -> None:
@@ -146,7 +157,7 @@ def _parse_args() -> argparse.Namespace:
 
     # Initial model override
     parser.add_argument(
-        "--init-smooth", type=float, default=6.0, metavar="PX",
+        "--init-smooth", type=float, default=2.0, metavar="PX",
         help="Gaussian sigma [pixels] for smoothing true model → initial model. "
              "Set 0 to use config initial_model (no smoothing).",
     )
@@ -346,7 +357,7 @@ def main() -> None:
     # -- Progress log (captures all print output with timestamps) --
     _ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     _progress_log = logs_dir / f"progress_{_ts}.txt"
-    _logger = _TeeLogger(_progress_log)
+    _logger = _TeeLogger(_progress_log, timestamps=True)
     print(f"Progress log : {_progress_log}")
 
     # ---- Config ----
@@ -377,6 +388,14 @@ def main() -> None:
         inv_cfg.setdefault("regularization", {})["lambda_sigma"] = args.lambda_sigma
     if args.step_init is not None:
         inv_cfg["step_init"] = args.step_init
+    if args.patience is not None:
+        inv_cfg["patience"] = args.patience
+    if args.warmup is not None:
+        inv_cfg["warmup_iters"] = args.warmup
+    if args.step_epsr is not None:
+        inv_cfg["step_init_epsr"] = args.step_epsr
+    if args.step_sigma is not None:
+        inv_cfg["step_init_sigma"] = args.step_sigma
 
     # ---- Frequencies ----
     if args.fc_low is not None or args.fc_high is not None or args.nf is not None:
