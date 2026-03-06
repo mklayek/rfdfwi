@@ -37,17 +37,20 @@ initial_model:
 
 # Inversion parameters (MATLAB: LBFGS, Wolfe line search)
 inversion:
-  max_iter: 50
-  patience: 8           # early-stop window: N consecutive non-decreasing iters (after warmup)
-  warmup_iters: 5       # skip first N iterations before applying early-stop check
+  max_iter: 200           # was 50; give L-BFGS room to converge (MATLAB: 1500)
+  patience: 15            # was 8; L-BFGS needs more patience
+  warmup_iters: 10        # was 5; L-BFGS builds curvature slowly
   step_type: linesearch
   step_init: 1.0           # fallback if step_init_epsr/sigma not set
-  step_init_epsr: 0.5      # max Δεᵣ per iter (7% of εᵣ range ≈ 7.0)
-  step_init_sigma: 5.0e-4  # max Δσ per iter (2.5% of σ range ≈ 0.02 S/m)
-  stepmax: 12           # max Armijo line-search trials (covers 2^12 step range)
-  scale_fac: 2.0        # step halving factor (MATLAB SCALEFAC)
+  step_init_epsr: 1.0      # was 0.5; Wolfe finds proper step size
+  step_init_sigma: 1.0e-3  # was 5e-4; Wolfe finds proper step size
+  stepmax: 12           # max Wolfe line-search trials (MATLAB STEPMAX)
+  scale_fac: 2.0        # bracket expansion/bisection factor (MATLAB SCALEFAC)
   c1_wolfe: 1.0e-4      # Armijo C1 sufficient-decrease constant
-  conv_ratio: 1.0e-2    # stop if L2/L2[0] <= conv_ratio (1% of initial L2)
+  c2_wolfe: 0.9          # Wolfe C2 curvature constant (MATLAB: 0.9)
+  conv_ratio: 5.0e-5    # was 1e-2; match MATLAB tight threshold
+  nlbfgs: 5             # L-BFGS memory length (MATLAB: nlbfgs=5)
+  use_lbfgs: true       # enable L-BFGS quasi-Newton optimizer
   sigma0: 5.6e-3        # conductivity normalisation reference (MATLAB sig0)
   regularization:
     type: tikhonov

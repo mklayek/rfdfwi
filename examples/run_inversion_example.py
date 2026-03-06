@@ -396,6 +396,12 @@ def main() -> None:
         inv_cfg["step_init_epsr"] = args.step_epsr
     if args.step_sigma is not None:
         inv_cfg["step_init_sigma"] = args.step_sigma
+    if args.c2_wolfe is not None:
+        inv_cfg["c2_wolfe"] = args.c2_wolfe
+    if args.nlbfgs is not None:
+        inv_cfg["nlbfgs"] = args.nlbfgs
+    if args.no_lbfgs:
+        inv_cfg["use_lbfgs"] = False
 
     # ---- Frequencies ----
     if args.fc_low is not None or args.fc_high is not None or args.nf is not None:
@@ -405,10 +411,10 @@ def main() -> None:
         nf      = args.nf      if args.nf      is not None else 10
         freqs   = np.linspace(fc_low, fc_high, nf)
         inv_cfg["freqs_hz"] = freqs.tolist()
-        freq_label = f"linspace {fc_low/1e6:.0f}–{fc_high/1e6:.0f} MHz  nf={nf}"
+        freq_label = f"linspace {fc_low/1e6:.0f}-{fc_high/1e6:.0f} MHz  nf={nf}"
     else:
         freqs = np.array(GPRFM_FREQS_HZ, dtype=float)
-        freq_label = f"GPRFM 10 discrete ({freqs[0]/1e6:.0f}–{freqs[-1]/1e6:.0f} MHz)"
+        freq_label = f"GPRFM 10 discrete ({freqs[0]/1e6:.0f}-{freqs[-1]/1e6:.0f} MHz)"
 
     # ---- Acquisition ----
     acq_cfg = config.get("acquisition", {})

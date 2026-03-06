@@ -155,4 +155,16 @@ def add_common_args(
         "--step-sigma", type=float, default=None, metavar="S",
         help="Initial line-search step for σ update (overrides config step_init_sigma).",
     )
+    parser.add_argument(
+        "--c2-wolfe", type=float, default=None, metavar="V",
+        help="Wolfe C2 curvature constant (default: 0.9, MATLAB: 0.9).",
+    )
+    parser.add_argument(
+        "--nlbfgs", type=int, default=None, metavar="N",
+        help="L-BFGS memory length (default: 5, MATLAB: 5).",
+    )
+    parser.add_argument(
+        "--no-lbfgs", action="store_true", default=False,
+        help="Disable L-BFGS, use steepest descent with Hessian preconditioning.",
+    )
     return parser
