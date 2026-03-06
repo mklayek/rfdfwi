@@ -37,9 +37,9 @@ initial_model:
 
 # Inversion parameters (MATLAB: LBFGS, Wolfe line search)
 inversion:
-  max_iter: 20
-  patience: 5           # early-stop window: N consecutive non-decreasing iters (after warmup)
-  warmup_iters: 3       # skip first N iterations before applying early-stop check
+  max_iter: 50
+  patience: 8           # early-stop window: N consecutive non-decreasing iters (after warmup)
+  warmup_iters: 5       # skip first N iterations before applying early-stop check
   step_type: linesearch
   step_init: 1.0           # fallback if step_init_epsr/sigma not set
   step_init_epsr: 0.5      # max Δεᵣ per iter (7% of εᵣ range ≈ 7.0)
@@ -47,7 +47,7 @@ inversion:
   stepmax: 12           # max Armijo line-search trials (covers 2^12 step range)
   scale_fac: 2.0        # step halving factor (MATLAB SCALEFAC)
   c1_wolfe: 1.0e-4      # Armijo C1 sufficient-decrease constant
-  conv_ratio: 5.0e-5    # stop if L2/L2[0] <= conv_ratio (MATLAB 5e-5)
+  conv_ratio: 1.0e-2    # stop if L2/L2[0] <= conv_ratio (1% of initial L2)
   sigma0: 5.6e-3        # conductivity normalisation reference (MATLAB sig0)
   regularization:
     type: tikhonov
