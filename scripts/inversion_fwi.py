@@ -203,30 +203,15 @@ def compute_gradient(
         omega   = 2.0 * np.pi * freq
         src_amp = -(omega * MU0 * 1j) / dh ** 2
 
-        if verbose:
-            print(f"    [freq {fi+1:2d}/{n_freq}] f={freq/1e6:6.1f} MHz"
-                  f"  building A ({grid_style}) ...")
-
         A     = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
                                    grid_style=grid_style)
         A_adj = A.conj().T.tocsr()
-
-        if verbose:
-            print(f"    [freq {fi+1:2d}/{n_freq}] A assembled ({A.shape[0]}×{A.shape[1]},"
-                  f" nnz={A.nnz}) — {n_src} sources ...")
 
         for si in range(n_src):
             ix, iz = sources[si]
 
             # ---- Forward solve ----
-            if verbose:
-                print(f"      [src {si+1:3d}/{n_src}] (ix={ix:3d}, iz={iz:3d})"
-                      f"  forward u ...", end="", flush=True)
-
             u = solve_forward(A, ix, iz, nx, nz, source_amplitude=src_amp)
-
-            if verbose:
-                print(f"  |u|_max={np.max(np.abs(u)):.3e}", end="")
 
             # ---- Receiver values and residual ----
             dc  = np.array([u[riz, rix] for rix, riz in receivers], dtype=complex)
@@ -235,25 +220,13 @@ def compute_gradient(
             L2_src = 0.5 * float(np.sum(np.abs(res) ** 2))
             L2_total += L2_src
 
-            if verbose:
-                r_max = float(np.max(np.abs(res)))
-                r_rms = float(np.sqrt(np.mean(np.abs(res) ** 2)))
-                print(f"  |res|_max={r_max:.3e}  |res|_rms={r_rms:.3e}"
-                      f"  L2_src={L2_src:.3e}", end="")
-
             # ---- Adjoint RHS: b_adj[k_rec] = res[r] / dh^2 ----
             b_adj = np.zeros(N, dtype=complex)
             for ri, (rix, riz) in enumerate(receivers):
                 b_adj[riz * nx + rix] += res[ri] / dh ** 2
 
             # ---- Adjoint solve ----
-            if verbose:
-                print(f"  adj λ ...", end="", flush=True)
-
             lam = sp_linalg.spsolve(A_adj, b_adj).reshape(nz, nx)
-
-            if verbose:
-                print(f"  |λ|_max={np.max(np.abs(lam)):.3e}")
 
             # ---- Gradient (MATLAB ass_grad_TEMKLnew.m) ----
             cu = np.conj(u)
@@ -266,19 +239,13 @@ def compute_gradient(
             hess_sigma += (omega ** 2) * u_sq
 
         if verbose:
-            ge_rms = float(np.sqrt(np.mean(grad_epsr ** 2)))
-            gs_rms = float(np.sqrt(np.mean(grad_sigma ** 2)))
-            print(f"    [freq {fi+1:2d}/{n_freq}] cumulative grad_epsr rms={ge_rms:.3e}"
-                  f"  grad_sigma rms={gs_rms:.3e}")
+            n_contrib = (fi + 1) * n_src          # source-frequency pairs so far
+            ge_rms = float(np.sqrt(np.mean(grad_epsr ** 2))) / n_contrib
+            gs_rms = float(np.sqrt(np.mean(grad_sigma ** 2))) / n_contrib
+            print(f"    [freq {fi+1:2d}/{n_freq}] {freq/1e6:.1f} MHz — {n_src} src done  grad/src: ε={ge_rms:.3e}  σ={gs_rms:.3e}")
 
     if verbose:
-        print(f"  gradient done — L2_total={L2_total:.6e}")
-        print(f"    grad_epsr : min={grad_epsr.min():.3e}  max={grad_epsr.max():.3e}"
-              f"  rms={float(np.sqrt(np.mean(grad_epsr**2))):.3e}")
-        print(f"    grad_sigma: min={grad_sigma.min():.3e}  max={grad_sigma.max():.3e}"
-              f"  rms={float(np.sqrt(np.mean(grad_sigma**2))):.3e}")
-        print(f"    hess_epsr : min={hess_epsr.min():.3e}  max={hess_epsr.max():.3e}")
-        print(f"    hess_sigma: min={hess_sigma.min():.3e}  max={hess_sigma.max():.3e}")
+        print(f"  gradient done — L2={L2_total:.6e}")
 
     return grad_epsr, grad_sigma, hess_epsr, hess_sigma, d_calc, L2_total
 
@@ -504,25 +471,14 @@ def run_inversion(
             break
 
         # ---- Tikhonov regularisation (added to gradient) ----
-        print(f"\n  Tikhonov regularisation (LAMBDA_1={lambda1:.2e}, LAMBDA_2={lambda2:.2e}) ...")
         tikh_s = tikhonov_sigma(sigma, dh, lambda1, beta_sigma, sigma0)
         tikh_e = tikhonov_epsr(epsr,  dh, lambda2, beta_epsr)
         g_sigma = grad_sigma + tikh_s
         g_epsr  = grad_epsr  + tikh_e
-        print(f"    tikh_sigma: max={np.max(np.abs(tikh_s)):.3e}"
-              f"  rms={float(np.sqrt(np.mean(tikh_s**2))):.3e}")
-        print(f"    tikh_epsr : max={np.max(np.abs(tikh_e)):.3e}"
-              f"  rms={float(np.sqrt(np.mean(tikh_e**2))):.3e}")
-        print(f"    reg_grad_epsr : rms={float(np.sqrt(np.mean(g_epsr**2))):.3e}"
-              f"  min={g_epsr.min():.3e}  max={g_epsr.max():.3e}")
-        print(f"    reg_grad_sigma: rms={float(np.sqrt(np.mean(g_sigma**2))):.3e}"
-              f"  min={g_sigma.min():.3e}  max={g_sigma.max():.3e}")
 
         # ---- Search direction (steepest descent: d = -reg_gradient) ----
         dir_epsr  = -g_epsr
         dir_sigma = -g_sigma
-        print(f"  Search direction: d_epsr = -reg_grad_epsr"
-              f"  d_sigma = -reg_grad_sigma")
 
         # ---- Auto-scale initial step ----
         grad_norm_sq = float(np.sum(g_epsr ** 2 + g_sigma ** 2))
@@ -531,11 +487,9 @@ def run_inversion(
                 step = L2 / grad_norm_sq
             else:
                 step = 1.0
-            print(f"  Auto-scaled step: ||g||^2={grad_norm_sq:.3e}"
-                  f"  L2={L2:.3e}  -> step={step:.3e}")
+            print(f"  step={step:.3e} [auto-scaled]")
 
         # ---- Armijo backtracking line search ----
-        print(f"  Armijo line search (c1={c1_wolfe:.1e}, max_ls={stepmax}) ...")
         phi0       = L2
         armijo_rhs = c1_wolfe * step * grad_norm_sq
         accepted   = False
@@ -573,11 +527,7 @@ def run_inversion(
         sigma = sigma + delta_sigma
         epsr, sigma = apply_bounds(epsr, sigma, bounds)
         history["step"].append(step)
-        print(f"  Model update applied: step={step:.3e}")
-        print(f"    |Δepsr|_max={np.max(np.abs(delta_epsr)):.3e}"
-              f"  |Δsigma|_max={np.max(np.abs(delta_sigma)):.3e}")
-        print(f"    epsr  : min={epsr.min():.3f}  max={epsr.max():.3f}")
-        print(f"    sigma : min={sigma.min():.4e}  max={sigma.max():.4e}")
+        print(f"  update: |Δε|_max={np.max(np.abs(delta_epsr)):.3e}  |Δσ|_max={np.max(np.abs(delta_sigma)):.3e}  epsr=[{epsr.min():.2f},{epsr.max():.2f}]")
 
         # ---- Per-iteration callback ----
         if iter_callback is not None:
@@ -602,6 +552,5 @@ def run_inversion(
 
         # ---- Expand step for next iteration ----
         step = min(step * scale_fac, step_init if step_init > 0 else step * 10)
-        print(f"  Next step estimate: {step:.3e}")
 
     return epsr, sigma, history

@@ -89,6 +89,31 @@ DEFAULT_BASE = root / "results" / "inversion"
 _matplotlib_imported = False
 
 
+class _TeeLogger:
+    """Duplicate stdout to a log file, prepending timestamps to file lines."""
+    def __init__(self, path: Path) -> None:
+        self._file = open(path, "w", encoding="utf-8")
+        self._stdout = sys.stdout
+        sys.stdout = self
+
+    def write(self, msg: str) -> None:
+        self._stdout.write(msg)
+        if msg and msg != "\n":
+            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self._file.write(f"[{ts}] {msg}" if not msg.startswith("\n") else msg)
+        else:
+            self._file.write(msg)
+        self._file.flush()
+
+    def flush(self) -> None:
+        self._stdout.flush()
+        self._file.flush()
+
+    def close(self) -> None:
+        sys.stdout = self._stdout
+        self._file.close()
+
+
 def _import_matplotlib():
     global _matplotlib_imported
     if not _matplotlib_imported:
@@ -184,8 +209,10 @@ def _save_model_image(
     dh: float,
     path: Path,
     title: str,
-    cmap: str = "viridis",
+    cmap: str = "seismic",
     label: str = "",
+    vmin: float | None = None,
+    vmax: float | None = None,
 ) -> None:
     _import_matplotlib()
     import matplotlib.pyplot as plt
@@ -200,6 +227,8 @@ def _save_model_image(
         extent=[x[0], x[-1], z[-1], z[0]],
         aspect="auto",
         cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
     )
     ax.set_xlabel("Distance [m]", fontsize=12)
     ax.set_ylabel("Depth [m]",    fontsize=12)
@@ -253,13 +282,35 @@ def _save_diverging_image(
     plt.close(fig)
 
 
-def _save_misfit_plot(misfit: list[float], path: Path) -> None:
+def _save_misfit_plot(misfit: list[float], path: Path,
+                      max_iter: int = None) -> None:
     _import_matplotlib()
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(7, 5), dpi=150)
     iters = np.arange(1, len(misfit) + 1)
-    ax.semilogy(iters, misfit, "k-o", markersize=5, linewidth=1.5)
+    ax.semilogy(iters, misfit, "ko-", linewidth=1.5, markersize=5)
+    # Highlight the last (most recent) point in red
+    ax.plot(iters[-1], misfit[-1], "ro", markersize=10, zorder=5)
+    # Annotate the last point with its value
+    ax.annotate(f"{misfit[-1]:.3e}", xy=(iters[-1], misfit[-1]),
+                xytext=(5, 5), textcoords="offset points", fontsize=9)
+    # Faint vertical dashed line at expected total iterations
+    if max_iter is not None:
+        ax.axvline(x=max_iter, color="gray", linestyle="--", linewidth=0.8,
+                   alpha=0.4)
+    # Summary text box in the upper-right corner
+    if len(misfit) > 1:
+        ratio = misfit[-1] / misfit[0] if misfit[0] != 0 else float("nan")
+        text = (
+            f"L2[0]  = {misfit[0]:.3e}\n"
+            f"L2[-1] = {misfit[-1]:.3e}\n"
+            f"ratio  = {ratio:.3e}\n"
+            f"iter   = {len(misfit)}"
+        )
+        ax.text(0.97, 0.97, text, transform=ax.transAxes, va="top", ha="right",
+                fontsize=9, bbox=dict(boxstyle="round", facecolor="wheat",
+                                      alpha=0.5))
     ax.set_xlabel("Iteration", fontsize=12)
     ax.set_ylabel("L2 misfit (log scale)", fontsize=12)
     ax.set_title("FWI convergence curve", fontsize=13)
@@ -291,6 +342,12 @@ def main() -> None:
     for d in (obs_dir, models_dir, grad_dir, hess_dir, sdir_dir, tikh_dir,
               misfit_dir, logs_dir):
         d.mkdir(parents=True, exist_ok=True)
+
+    # -- Progress log (captures all print output with timestamps) --
+    _ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    _progress_log = logs_dir / f"progress_{_ts}.txt"
+    _logger = _TeeLogger(_progress_log)
+    print(f"Progress log : {_progress_log}")
 
     # ---- Config ----
     if args.config:
@@ -387,9 +444,11 @@ def main() -> None:
 
     # ---- Save true model images ----
     _save_model_image(true_epsr, dh, models_dir / "true_epsr.png",
-                      "True model — εᵣ", cmap="viridis", label="Relative permittivity")
+                      "True model — εᵣ", cmap="seismic", vmin=0.0, vmax=10.0,
+                      label="Relative permittivity")
     _save_model_image(true_sigma * 1e3, dh, models_dir / "true_sigma.png",
-                      "True model — σ [mS/m]", cmap="hot_r", label="Conductivity [mS/m]")
+                      "True model — σ [mS/m]", cmap="seismic", vmin=0.0, vmax=10.0,
+                      label="Conductivity [mS/m]")
     print(f"True model : {true_label}")
     print(f"  -> {models_dir / 'true_epsr.png'}")
 
@@ -430,25 +489,32 @@ def main() -> None:
             init_label = "config initial_model"
 
     _save_model_image(epsr_init, dh, models_dir / "init_epsr.png",
-                      "Initial model — εᵣ", cmap="viridis", label="Relative permittivity")
+                      "Initial model — εᵣ", cmap="seismic", vmin=0.0, vmax=10.0,
+                      label="Relative permittivity")
     _save_model_image(sigma_init * 1e3, dh, models_dir / "init_sigma.png",
-                      "Initial model — σ [mS/m]", cmap="hot_r", label="Conductivity [mS/m]")
+                      "Initial model — σ [mS/m]", cmap="seismic", vmin=0.0, vmax=10.0,
+                      label="Conductivity [mS/m]")
     print(f"\nInitial model: {init_label}")
 
     # ---- Per-iteration callback: save all intermediate images ----
+    _live_misfit: list[float] = []
+
     def _callback(it: int, epsr_it: np.ndarray, sigma_it: np.ndarray,
                   extras: dict) -> None:
         L2 = extras.get("L2", float("nan"))
+        _live_misfit.append(L2)
+        _save_misfit_plot(_live_misfit, misfit_dir / "misfit_curve.png",
+                          max_iter=inv_cfg.get("max_iter", 20))
 
         # -- Updated models --
         _save_model_image(
             epsr_it, dh, models_dir / f"iter_{it:04d}_epsr.png",
             f"Recovered εᵣ — iter {it}  L2={L2:.3e}",
-            cmap="viridis", label="Relative permittivity")
+            cmap="seismic", vmin=0.0, vmax=10.0, label="Relative permittivity")
         _save_model_image(
             sigma_it * 1e3, dh, models_dir / f"iter_{it:04d}_sigma.png",
             f"Recovered σ [mS/m] — iter {it}  L2={L2:.3e}",
-            cmap="hot_r", label="Conductivity [mS/m]")
+            cmap="seismic", vmin=0.0, vmax=10.0, label="Conductivity [mS/m]")
 
         # -- Raw gradient (diverging: positive=increase, negative=decrease) --
         g_e = extras.get("grad_epsr")
@@ -534,13 +600,14 @@ def main() -> None:
     print(f"\nFinal model  -> {final_path}")
 
     _save_model_image(epsr_rec, dh, models_dir / "final_epsr.png",
-                      "Recovered εᵣ (final)", cmap="viridis", label="Relative permittivity")
+                      "Recovered εᵣ (final)", cmap="seismic", vmin=0.0, vmax=10.0,
+                      label="Relative permittivity")
     _save_model_image(sigma_rec * 1e3, dh, models_dir / "final_sigma.png",
-                      "Recovered σ [mS/m] (final)", cmap="hot_r", label="Conductivity [mS/m]")
+                      "Recovered σ [mS/m] (final)", cmap="seismic", vmin=0.0, vmax=10.0,
+                      label="Conductivity [mS/m]")
 
     # ---- Misfit plot ----
     misfit_path = misfit_dir / "misfit_curve.png"
-    _save_misfit_plot(history["misfit"], misfit_path)
     np.savez(misfit_dir / "misfit_history.npz",
              misfit=np.array(history["misfit"]),
              step=np.array(history["step"]))
@@ -553,6 +620,7 @@ def main() -> None:
     with open(log_path, "w", encoding="utf-8") as f:
         f.write("rfdfwi FWI run log\n")
         f.write("=" * 50 + "\n")
+        f.write(f"Progress log : {_progress_log}\n")
         f.write(f"Date/time    : {t_start.strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Config       : {config_path}\n")
         f.write(f"Grid style   : {grid_style}\n")
@@ -578,6 +646,8 @@ def main() -> None:
         print(f"\nFinal L2 : {history['misfit'][-1]:.6e}")
         if len(history["misfit"]) > 1:
             print(f"L2 ratio : {history['misfit'][-1]/history['misfit'][0]:.3e}")
+
+    _logger.close()
 
 
 if __name__ == "__main__":
