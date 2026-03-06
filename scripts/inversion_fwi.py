@@ -347,6 +347,95 @@ def scale_gradient(
 
 
 # ---------------------------------------------------------------------------
+# L-BFGS two-loop recursion
+# ---------------------------------------------------------------------------
+
+def lbfgs_direction(
+    grad_epsr: np.ndarray,
+    grad_sigma: np.ndarray,
+    hess_epsr: np.ndarray,
+    hess_sigma: np.ndarray,
+    s_hist: list[tuple[np.ndarray, np.ndarray]],
+    y_hist: list[tuple[np.ndarray, np.ndarray]],
+    rho_hist: list[float],
+    int_s: tuple,
+    eps_H: float = 0.01,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Preconditioned L-BFGS search direction (MATLAB LBFGS_TEmNEW.m).
+
+    Uses pseudo-Hessian diagonal as initial preconditioner H0.
+    Operates on flattened interior-only vectors to avoid PML contamination.
+
+    Parameters
+    ----------
+    grad_epsr, grad_sigma : (nz, nx)  Scaled regularised gradients.
+    hess_epsr, hess_sigma : (nz, nx)  Pseudo-Hessian diagonals.
+    s_hist : list of (s_epsr_int, s_sigma_int) model differences on interior.
+    y_hist : list of (y_epsr_int, y_sigma_int) gradient differences on interior.
+    rho_hist : list of 1/<y, s> values.
+    int_s : interior slice np.s_[npml:nz-npml, npml:nx-npml].
+    eps_H : water-level stabilisation.
+
+    Returns
+    -------
+    dir_epsr, dir_sigma : (nz, nx)  Search direction (descent, PML zeroed,
+                                     normalised to unit interior max).
+    """
+    nz, nx = grad_epsr.shape
+
+    # Flatten interior gradients into a single combined vector
+    q_e = -grad_epsr[int_s].ravel().copy()
+    q_s = -grad_sigma[int_s].ravel().copy()
+    q = np.concatenate([q_e, q_s])
+
+    m = len(s_hist)
+    alpha_lbfgs = np.zeros(m)
+
+    # ---- Forward loop (newest to oldest) ----
+    for i in range(m - 1, -1, -1):
+        s_e, s_s = s_hist[i]
+        s_vec = np.concatenate([s_e.ravel(), s_s.ravel()])
+        alpha_lbfgs[i] = rho_hist[i] * float(np.dot(s_vec, q))
+        y_e, y_s = y_hist[i]
+        y_vec = np.concatenate([y_e.ravel(), y_s.ravel()])
+        q = q - alpha_lbfgs[i] * y_vec
+
+    # ---- Initial Hessian H0 = diag(1 / (hess/H_max + eps)) ----
+    H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
+    H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
+
+    n_int = q_e.size
+    r_e = q[:n_int] / (hess_epsr[int_s].ravel() / H_max_e + eps_H)
+    r_s = q[n_int:] / (hess_sigma[int_s].ravel() / H_max_s + eps_H)
+    r = np.concatenate([r_e, r_s])
+
+    # ---- Backward loop (oldest to newest) ----
+    for i in range(m):
+        y_e, y_s = y_hist[i]
+        y_vec = np.concatenate([y_e.ravel(), y_s.ravel()])
+        s_e, s_s = s_hist[i]
+        s_vec = np.concatenate([s_e.ravel(), s_s.ravel()])
+        beta = rho_hist[i] * float(np.dot(y_vec, r))
+        r = r + s_vec * (alpha_lbfgs[i] - beta)
+
+    # ---- Reshape back to 2D (interior only; PML stays zero) ----
+    int_shape = grad_epsr[int_s].shape
+    dir_epsr = np.zeros((nz, nx), dtype=np.float64)
+    dir_sigma = np.zeros((nz, nx), dtype=np.float64)
+    dir_epsr[int_s] = r[:n_int].reshape(int_shape)
+    dir_sigma[int_s] = r[n_int:].reshape(int_shape)
+
+    # Normalise by interior max
+    d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
+    d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
+    dir_epsr /= d_max_e
+    dir_sigma /= d_max_s
+
+    return dir_epsr, dir_sigma
+
+
+# ---------------------------------------------------------------------------
 # Bounds
 # ---------------------------------------------------------------------------
 
