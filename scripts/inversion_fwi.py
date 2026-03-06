@@ -112,23 +112,32 @@ def compute_forward_data(
     d_calc : (n_src, n_freq, n_rec)  Complex receiver responses.
     """
     nz, nx = epsr.shape
+    N      = nx * nz
     n_src  = len(sources)
     n_freq = len(freqs)
-    n_rec  = len(receivers)
 
-    d_calc = np.zeros((n_src, n_freq, n_rec), dtype=complex)
+    # Pre-extract receiver indices as arrays (once, outside all loops)
+    rec_ix  = np.array([r[0] for r in receivers], dtype=np.intp)
+    rec_iz  = np.array([r[1] for r in receivers], dtype=np.intp)
+
+    d_calc = np.zeros((n_src, n_freq, len(receivers)), dtype=complex)
 
     for fi, freq in enumerate(freqs):
         omega   = 2.0 * np.pi * freq
         src_amp = -(omega * MU0 * 1j) / dh ** 2
 
-        A = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
-                               grid_style=grid_style)
+        A  = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
+                                grid_style=grid_style)
+        # Factor A once for all sources at this frequency
+        lu = sp_linalg.splu(A.tocsc())
 
         def _fwd(si: int) -> tuple[int, np.ndarray]:
             ix, iz = sources[si]
-            u = solve_forward(A, ix, iz, nx, nz, source_amplitude=src_amp)
-            row = np.array([u[riz, rix] for rix, riz in receivers], dtype=complex)
+            b = np.zeros(N, dtype=np.complex128)
+            b[iz * nx + ix] = src_amp
+            u_flat = lu.solve(b)
+            u      = u_flat.reshape(nz, nx)
+            row    = u[rec_iz, rec_ix]          # vectorized
             return si, row
 
         if n_workers > 1 and n_src > 1:
@@ -190,56 +199,70 @@ def compute_gradient(
     N      = nx * nz
     n_src  = len(sources)
     n_freq = len(freqs)
-    n_rec  = len(receivers)
+
+    # Pre-extract receiver indices as arrays (once, outside all loops)
+    rec_ix   = np.array([r[0] for r in receivers], dtype=np.intp)
+    rec_iz   = np.array([r[1] for r in receivers], dtype=np.intp)
+    rec_flat = rec_iz * nx + rec_ix           # flat indices for adjoint RHS
 
     grad_epsr  = np.zeros((nz, nx), dtype=np.float64)
     grad_sigma = np.zeros((nz, nx), dtype=np.float64)
     hess_epsr  = np.zeros((nz, nx), dtype=np.float64)
     hess_sigma = np.zeros((nz, nx), dtype=np.float64)
-    d_calc     = np.zeros((n_src, n_freq, n_rec), dtype=complex)
+    d_calc     = np.zeros((n_src, n_freq, len(receivers)), dtype=complex)
     L2_total   = 0.0
 
     for fi, freq in enumerate(freqs):
         omega   = 2.0 * np.pi * freq
         src_amp = -(omega * MU0 * 1j) / dh ** 2
 
-        A     = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
-                                   grid_style=grid_style)
-        A_adj = A.conj().T.tocsr()
+        A = build_helmholtz_2d(epsr, sigma, dh, omega, npml, a0_cfs,
+                               grid_style=grid_style)
+        # Factor A and A^H once per frequency — critical optimisation
+        lu     = sp_linalg.splu(A.tocsc())
+        lu_adj = sp_linalg.splu(A.conj().T.tocsc())
 
-        for si in range(n_src):
+        def _process_source(si: int):
             ix, iz = sources[si]
 
-            # ---- Forward solve ----
-            u = solve_forward(A, ix, iz, nx, nz, source_amplitude=src_amp)
+            # --- Forward solve ---
+            b_fwd = np.zeros(N, dtype=np.complex128)
+            b_fwd[iz * nx + ix] = src_amp
+            u_flat = lu.solve(b_fwd)
 
-            # ---- Receiver values and residual ----
-            dc  = np.array([u[riz, rix] for rix, riz in receivers], dtype=complex)
-            res = dc - d_obs[si, fi, :]          # d_calc - d_obs
+            # --- Receiver extraction (vectorised) ---
+            u  = u_flat.reshape(nz, nx)
+            dc = u[rec_iz, rec_ix]
+            res = dc - d_obs[si, fi, :]
+
+            # --- Adjoint RHS (vectorised) ---
+            b_adj = np.zeros(N, dtype=np.complex128)
+            np.add.at(b_adj, rec_flat, res / dh ** 2)
+            lam_flat = lu_adj.solve(b_adj)
+
+            return si, dc, res, u_flat, lam_flat
+
+        if n_workers > 1 and n_src > 1:
+            with ThreadPoolExecutor(max_workers=n_workers) as ex:
+                src_results = list(ex.map(_process_source, range(n_src)))
+        else:
+            src_results = [_process_source(si) for si in range(n_src)]
+
+        # --- Accumulate gradients (serial — no race conditions) ---
+        for si, dc, res, u_flat, lam_flat in src_results:
+            u   = u_flat.reshape(nz, nx)
+            lam = lam_flat.reshape(nz, nx)
             d_calc[si, fi, :] = dc
-            L2_src = 0.5 * float(np.sum(np.abs(res) ** 2))
-            L2_total += L2_src
-
-            # ---- Adjoint RHS: b_adj[k_rec] = res[r] / dh^2 ----
-            b_adj = np.zeros(N, dtype=complex)
-            for ri, (rix, riz) in enumerate(receivers):
-                b_adj[riz * nx + rix] += res[ri] / dh ** 2
-
-            # ---- Adjoint solve ----
-            lam = sp_linalg.spsolve(A_adj, b_adj).reshape(nz, nx)
-
-            # ---- Gradient (MATLAB ass_grad_TEMKLnew.m) ----
+            L2_total += 0.5 * float(np.sum(np.abs(res) ** 2))
             cu = np.conj(u)
             grad_epsr  += np.real(omega ** 2 * cu * lam)
             grad_sigma += np.real(1j * omega  * cu * lam)
-
-            # ---- Pseudo-Hessian diagonal (Born approximation) ----
             u_sq = np.abs(u) ** 2
             hess_epsr  += (omega ** 4) * u_sq
             hess_sigma += (omega ** 2) * u_sq
 
         if verbose:
-            n_contrib = (fi + 1) * n_src          # source-frequency pairs so far
+            n_contrib = (fi + 1) * n_src
             ge_rms = float(np.sqrt(np.mean(grad_epsr ** 2))) / n_contrib
             gs_rms = float(np.sqrt(np.mean(grad_sigma ** 2))) / n_contrib
             print(f"    [freq {fi+1:2d}/{n_freq}] {freq/1e6:.1f} MHz — {n_src} src done  grad/src: ε={ge_rms:.3e}  σ={gs_rms:.3e}")
@@ -391,6 +414,8 @@ def run_inversion(
     scale_fac  = float(inv_cfg.get("scale_fac", 2.0))     # MATLAB SCALEFAC
     c1_wolfe   = float(inv_cfg.get("c1_wolfe", 1e-4))      # Armijo C1
     conv_ratio = float(inv_cfg.get("conv_ratio", 5e-5))    # MATLAB convergence ratio
+    patience     = int(inv_cfg.get("patience",     5))   # early-stop window (iters)
+    warmup_iters = int(inv_cfg.get("warmup_iters", 3))   # iters to skip before checking
 
     # ---- Frequencies ----
     freqs_cfg = inv_cfg.get("freqs_hz", None)
@@ -445,6 +470,8 @@ def run_inversion(
     print(f"  LAMBDA_1   : {lambda1}  |  LAMBDA_2: {lambda2}")
     print(f"  sigma0     : {sigma0:.3e}  |  beta_sigma={beta_sigma}, beta_epsr={beta_epsr}")
     print(f"  STEPMAX    : {stepmax}  |  SCALEFAC={scale_fac}  |  C1={c1_wolfe:.1e}")
+    print(f"  Patience   : {patience}  (early stop if no decrease for {patience} iters)")
+    print(f"  Warmup     : {warmup_iters}  (first {warmup_iters} iters excluded from early-stop check)")
 
     # ---- Iteration loop ----
     for it in range(max_iter):
@@ -470,28 +497,62 @@ def run_inversion(
             print("  [CONVERGED — ratio threshold reached]")
             break
 
+        # ---- Early stopping: skip warmup_iters, then check patience-wide window ----
+        # Requires at least (warmup_iters + patience) values in history before triggering.
+        # E.g. warmup=3, patience=5 → checks only when iter >= 8, using iters 4–8.
+        if len(history["misfit"]) >= warmup_iters + patience:
+            recent = history["misfit"][-patience:]   # last `patience` values (post-warmup)
+            if all(recent[i] >= recent[i - 1] for i in range(1, patience)):
+                print(f"\n  [EARLY STOP] L2 did not decrease for {patience} consecutive "
+                      f"iterations after {warmup_iters}-iter warmup "
+                      f"(iters {len(history['misfit'])-patience+1}–{len(history['misfit'])}: "
+                      f"{', '.join(f'{v:.4e}' for v in recent)}).")
+                break
+
         # ---- Tikhonov regularisation (added to gradient) ----
         tikh_s = tikhonov_sigma(sigma, dh, lambda1, beta_sigma, sigma0)
         tikh_e = tikhonov_epsr(epsr,  dh, lambda2, beta_epsr)
         g_sigma = grad_sigma + tikh_s
         g_epsr  = grad_epsr  + tikh_e
 
-        # ---- Search direction (steepest descent: d = -reg_gradient) ----
-        dir_epsr  = -g_epsr
-        dir_sigma = -g_sigma
+        # ---- Hessian preconditioning + search direction (interior cells only) ----
+        # PML cells have amplified |u|² → Hessian up to 100× larger than interior.
+        # Masking to interior prevents PML from dominating normalization and
+        # squashing interior updates.
+        int_s = np.s_[npml:nz-npml, npml:nx-npml]   # interior slice
+        H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
+        H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
+        eps_H   = 0.01           # 1 % water-level on normalised Hessian
 
-        # ---- Auto-scale initial step ----
-        grad_norm_sq = float(np.sum(g_epsr ** 2 + g_sigma ** 2))
-        if step <= 0.0 or it == 0:
-            if grad_norm_sq > 0:
-                step = L2 / grad_norm_sq
-            else:
-                step = 1.0
-            print(f"  step={step:.3e} [auto-scaled]")
+        # Compute direction for interior only; leave PML cells at zero
+        dir_epsr  = np.zeros((nz, nx), dtype=np.float64)
+        dir_sigma = np.zeros((nz, nx), dtype=np.float64)
+        dir_epsr[int_s]  = -g_epsr[int_s]  / (hess_epsr[int_s]  / H_max_e + eps_H)
+        dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] / H_max_s + eps_H)
+
+        # Normalize by interior max (PML cells are already zero)
+        d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
+        d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
+        dir_epsr  /= d_max_e
+        dir_sigma /= d_max_s
+        print(f"\n  Hessian precond [interior {nz-2*npml}×{nx-2*npml}]:"
+              f"  H_max_e={H_max_e:.3e}  H_max_s={H_max_s:.3e}  eps_H={eps_H}"
+              f"  d_max_e={d_max_e:.3e}  d_max_s={d_max_s:.3e}"
+              f"\n  |d_epsr|_int_max={np.max(np.abs(dir_epsr[int_s])):.3e}"
+              f"  |d_sigma|_int_max={np.max(np.abs(dir_sigma[int_s])):.3e}")
+
+        # ---- Initial step size ----
+        # Always reset to avoid permanent shrinkage from failed line searches
+        step = step_init if step_init > 0 else 1.0
+        print(f"  step={step:.3e} [reset per-iter, unit-normalised direction]")
 
         # ---- Armijo backtracking line search ----
+        # Descent slope in the normalised direction space: d = -g/H/norm,
+        # so g·d ~ -||d||² (consistent units; avoids mixing raw gradient ~1e20
+        # with unit-normalised direction ~1, which made armijo_rhs >> L2).
+        descent_slope = -(float(np.sum(dir_epsr**2)) + float(np.sum(dir_sigma**2)))
         phi0       = L2
-        armijo_rhs = c1_wolfe * step * grad_norm_sq
+        armijo_rhs = -c1_wolfe * step * descent_slope   # positive
         accepted   = False
 
         for ls in range(stepmax):
@@ -549,8 +610,5 @@ def run_inversion(
             }
             print(f"  Callback: saving iter {it+1} images ...")
             iter_callback(it + 1, epsr, sigma, extras)
-
-        # ---- Expand step for next iteration ----
-        step = min(step * scale_fac, step_init if step_init > 0 else step * 10)
 
     return epsr, sigma, history
