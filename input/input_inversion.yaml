@@ -38,16 +38,27 @@ initial_model:
 # Inversion parameters (MATLAB: LBFGS, Wolfe line search)
 inversion:
   max_iter: 20
+  patience: 5           # early-stop window: N consecutive non-decreasing iters (after warmup)
+  warmup_iters: 3       # skip first N iterations before applying early-stop check
   step_type: linesearch
-  step_init: 1.0
+  step_init: 1.0        # initial step per iteration (>0 = fixed; <=0 = auto=1.0)
+  stepmax: 12           # max Armijo line-search trials (covers 2^12 step range)
+  scale_fac: 2.0        # step halving factor (MATLAB SCALEFAC)
+  c1_wolfe: 1.0e-4      # Armijo C1 sufficient-decrease constant
+  conv_ratio: 5.0e-5    # stop if L2/L2[0] <= conv_ratio (MATLAB 5e-5)
+  sigma0: 5.6e-3        # conductivity normalisation reference (MATLAB sig0)
   regularization:
     type: tikhonov
-    alpha: 1.0e-4       # MATLAB: LAMBDA_1=2e-4
+    lambda_sigma: 2.0e-4  # Tikhonov weight for sigma (MATLAB LAMBDA_1=2e-4)
+    lambda_epsr: 0.0       # Tikhonov weight for epsr (MATLAB LAMBDA_2=0)
+    beta_sigma: 1.0
+    beta_epsr: 1.0
+    alpha: 1.0e-4          # kept for backward compat (= lambda_sigma fallback)
   bounds:
-    epsr_min:  3.8      # MATLAB: epsr_low=3.8*eps0/eps0
-    epsr_max:  33.2     # MATLAB: epsr_high=33.2*eps0/eps0
-    sigma_min: 0.08e-3  # MATLAB: sigr_low=0.08e-3
-    sigma_max: 20.2e-3  # MATLAB: sigr_high=20.2e-3
+    epsr_min:  0.5      # covers dry-sand cross1 (true epsr=1.0)
+    epsr_max:  10.0     # covers clay cross2 (true epsr=8.0) with margin
+    sigma_min: 0.05e-3  # below dry-sand sigma=0.1e-3
+    sigma_max: 15.0e-3  # above clay sigma=10e-3
 
 # Data
 data:
