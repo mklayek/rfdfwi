@@ -406,13 +406,14 @@ def lbfgs_direction(
         y_vec = np.concatenate([y_e.ravel(), y_s.ravel()])
         q = q - alpha_lbfgs[i] * y_vec
 
-    # ---- Initial Hessian H0 = diag(1 / (hess/H_max + eps)) ----
+    # ---- Initial Hessian H0 = diag(1 / (hess + eps*H_max)) ----
+    # MATLAB formula: r = q / (hess + SIG_HESS * MAX_HESS)
     H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
     H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
 
     n_int = q_e.size
-    r_e = q[:n_int] / (hess_epsr[int_s].ravel() / H_max_e + eps_H)
-    r_s = q[n_int:] / (hess_sigma[int_s].ravel() / H_max_s + eps_H)
+    r_e = q[:n_int] / (hess_epsr[int_s].ravel() + eps_H * H_max_e)
+    r_s = q[n_int:] / (hess_sigma[int_s].ravel() + eps_H * H_max_s)
     r = np.concatenate([r_e, r_s])
 
     # ---- Backward loop (oldest to newest) ----
@@ -431,11 +432,10 @@ def lbfgs_direction(
     dir_epsr[int_s] = r[:n_int].reshape(int_shape)
     dir_sigma[int_s] = r[n_int:].reshape(int_shape)
 
-    # Normalise by interior max
-    d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
-    d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
-    dir_epsr /= d_max_e
-    dir_sigma /= d_max_s
+    # NOTE: No per-parameter normalization — MATLAB LBFGS_TEmNEW.m does NOT
+    # normalize the direction.  The Hessian preconditioning already provides
+    # natural scaling between epsilon and sigma.  Independent normalization
+    # destroys this balance and freezes the weaker parameter.
 
     return dir_epsr, dir_sigma
 
@@ -819,7 +819,9 @@ def run_inversion(
                 s_history, y_history, rho_history,
                 int_s, eps_H=0.01,
             )
-            print(f"  [L-BFGS] {len(s_history)} curvature pair(s)")
+            print(f"  [L-BFGS] {len(s_history)} curvature pair(s)"
+                  f"  |dir_e|={np.max(np.abs(dir_epsr[int_s])):.3e}"
+                  f"  |dir_s|={np.max(np.abs(dir_sigma[int_s])):.3e}")
         else:
             # Steepest descent with Hessian preconditioning (iter 1 or no history)
             H_max_e = max(float(hess_epsr[int_s].max()), 1e-300)
@@ -827,13 +829,13 @@ def run_inversion(
             eps_H = 0.01
             dir_epsr  = np.zeros((nz, nx), dtype=np.float64)
             dir_sigma = np.zeros((nz, nx), dtype=np.float64)
-            dir_epsr[int_s]  = -g_epsr[int_s] / (hess_epsr[int_s] / H_max_e + eps_H)
-            dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] / H_max_s + eps_H)
-            d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
-            d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
-            dir_epsr /= d_max_e
-            dir_sigma /= d_max_s
-            print(f"  [Steepest descent] H_max_e={H_max_e:.3e}  H_max_s={H_max_s:.3e}")
+            # MATLAB formula: d = -grad / (hess + eps * H_max)
+            dir_epsr[int_s]  = -g_epsr[int_s] / (hess_epsr[int_s] + eps_H * H_max_e)
+            dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] + eps_H * H_max_s)
+            # NOTE: No per-parameter normalization (matches MATLAB)
+            print(f"  [Steepest descent] H_max_e={H_max_e:.3e}  H_max_s={H_max_s:.3e}"
+                  f"  |dir_e|={np.max(np.abs(dir_epsr[int_s])):.3e}"
+                  f"  |dir_s|={np.max(np.abs(dir_sigma[int_s])):.3e}")
 
         # ---- Descent check (MATLAB check_descent_TE.m) ----
         # Must include step_init factors to match Wolfe gs0 calculation
@@ -849,12 +851,9 @@ def run_inversion(
             H_max_s = max(float(hess_sigma[int_s].max()), 1e-300)
             dir_epsr  = np.zeros((nz, nx), dtype=np.float64)
             dir_sigma = np.zeros((nz, nx), dtype=np.float64)
-            dir_epsr[int_s]  = -g_epsr[int_s] / (hess_epsr[int_s] / H_max_e + 0.01)
-            dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] / H_max_s + 0.01)
-            d_max_e = max(float(np.max(np.abs(dir_epsr[int_s]))), 1e-300)
-            d_max_s = max(float(np.max(np.abs(dir_sigma[int_s]))), 1e-300)
-            dir_epsr /= d_max_e
-            dir_sigma /= d_max_s
+            # MATLAB formula: d = -grad / (hess + eps * H_max)
+            dir_epsr[int_s]  = -g_epsr[int_s] / (hess_epsr[int_s] + 0.01 * H_max_e)
+            dir_sigma[int_s] = -g_sigma[int_s] / (hess_sigma[int_s] + 0.01 * H_max_s)
 
         # ---- Wolfe line search (MATLAB wolfe_TENEW.m) ----
         step_e = step_init_e
