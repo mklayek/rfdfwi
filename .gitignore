@@ -2,7 +2,6 @@
 rfdfwimkl/
 
 # Results (large generated files)
-results/
 inputmodel/
 
 # Python cache
@@ -19,3 +18,4 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+tmpclaude*
