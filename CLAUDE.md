@@ -37,6 +37,8 @@ Python code written during Postdoc @ March 2026:
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Repository:** https://github.com/mklayek/rfdfwi
+
 ## Project overview
 
 Python port of a MATLAB RFDFWI codebase: 2D frequency-domain finite-difference (FDFD) forward modelling and full-waveform inversion (FWI) for ground-penetrating radar (GPR). The physics is TE-mode (field component is **Ey**, not Ez — label as `Re(Ey)` everywhere).

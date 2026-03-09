@@ -35,6 +35,8 @@ Python code written during Postdoc @ March 2026:
 -->
 # RFDFWI — Command-Line Reference
 
+> **Repository:** https://github.com/mklayek/rfdfwi
+
 All example scripts are run from the **project root** with the conda
 environment activated:
 
@@ -57,6 +59,10 @@ cd D:\rfdfwi
 | `--stag1` | flag | **default** | stag1 9-point CFS-PML (Hustedt et al. 2004) |
 | `--stag2` | flag | off | stag2 9-point CFS-PML (Layek & Sengupta 2024) |
 | `-v / --verbose` | flag | off | Print extra diagnostic information |
+| `--patience N` | int | *(from config)* | Early-stop after N consecutive non-decreasing misfit iterations |
+| `--warmup N` | int | *(from config)* | Skip first N iterations before applying early-stop check |
+| `--step-epsr S` | float | *(from config)* | Override `step_init_epsr` — initial step size for εᵣ update |
+| `--step-sigma S` | float | *(from config)* | Override `step_init_sigma` — initial step size for σ update |
 
 > `--stag1` and `--stag2` are mutually exclusive; `--stag1` is the default.
 
@@ -326,12 +332,14 @@ Tikhonov regularisation and Armijo line search.
 | *(all common args)* | — | — | See common arguments table |
 | `--true-epsr V` | float | *(from config model)* | Homogeneous true εᵣ (overrides YAML model) |
 | `--true-sigma V` | float | *(from config model)* | Homogeneous true σ [S/m] |
-| `--init-smooth PX` | float | `6.0` | Gaussian smooth (pixels) true→initial model (MATLAB default) |
+| `--init-smooth PX` | float | `6.0` | Gaussian smooth (pixels) true→initial model |
 | `--init-epsr V` | float | *(None)* | Homogeneous initial εᵣ (overrides --init-smooth) |
 | `--init-sigma V` | float | *(None)* | Homogeneous initial σ [S/m] |
 | `--max-iter N` | int | *(from config)* | Override inversion max iterations |
 | `--lambda-sigma V` | float | *(from config)* | Override Tikhonov LAMBDA_1 (MATLAB: 2e-4) |
 | `--step-init V` | float | *(auto)* | Override initial step size (≤0 = auto-scale) |
+| `--step-epsr S` | float | *(from config)* | Override `step_init_epsr` — initial step for εᵣ (e.g. 0.5) |
+| `--step-sigma S` | float | *(from config)* | Override `step_init_sigma` — initial step for σ (e.g. 5e-4) |
 | `--fc-low HZ` | float | *(None)* | Switch to linspace sweep: start frequency |
 | `--fc-high HZ` | float | *(None)* | Linspace sweep: end frequency |
 | `--nf N` | int | *(None)* | Linspace sweep: number of frequencies |
@@ -347,9 +355,13 @@ python examples/run_inversion_example.py --stag2 --ncpus 4 \
     --true-epsr 9.0 --true-sigma 0.01 \
     --init-epsr 4.0 --init-sigma 3e-3 --max-iter 10
 
-# Custom lambda_sigma and more iterations
+# Custom lambda_sigma (50-iteration run uses config max_iter default)
 python examples/run_inversion_example.py --stag2 --ncpus 15 \
-    --lambda-sigma 2e-4 --max-iter 50
+    --lambda-sigma 2e-4
+
+# Override per-parameter initial step sizes
+python examples/run_inversion_example.py --stag2 --ncpus 15 \
+    --step-epsr 0.5 --step-sigma 5e-4
 
 # Linspace frequency sweep instead of GPRFM 10
 python examples/run_inversion_example.py --stag2 --ncpus 15 \
@@ -358,11 +370,26 @@ python examples/run_inversion_example.py --stag2 --ncpus 15 \
 
 **Output:**
 - `results/inversion/obs/d_obs.npz` — observed data array
-- `results/inversion/models/iter_<N>_epsr.png` — per-iteration εᵣ
-- `results/inversion/models/iter_<N>_sigma.png` — per-iteration σ
+- `results/inversion/models/true_model_epsr.png` — true εᵣ model
+- `results/inversion/models/true_model_sigma.png` — true σ model
+- `results/inversion/models/#0initial_model_epsr.png` — initial εᵣ model
+- `results/inversion/models/#0initial_model_sigma.png` — initial σ model
+- `results/inversion/models/000Output_model_at_iteration=<NNNN>_epsr.png` — per-iteration εᵣ
+- `results/inversion/models/000Output_model_at_iteration=<NNNN>_sigma.png` — per-iteration σ
+- `results/inversion/gradient/02grad_iteration_<nw>_iter=<NNNN>_epsr.png` — per-iteration εᵣ gradient
+- `results/inversion/gradient/02grad_iteration_<nw>_iter=<NNNN>_sigma.png` — per-iteration σ gradient
+- `results/inversion/hessian/03HESS_iteration_<nw>_<NNNN>_epsr.png` — per-iteration εᵣ pseudo-Hessian
+- `results/inversion/hessian/03HESS_iteration_<nw>_<NNNN>_sigma.png` — per-iteration σ pseudo-Hessian
+- `results/inversion/search_direction/04Hgrad_iteration_<NNNN>_epsr.png` — per-iteration εᵣ search direction
+- `results/inversion/search_direction/04Hgrad_iteration_<NNNN>_sigma.png` — per-iteration σ search direction
+- `results/inversion/tikhonov/05Tikhonov_iter=<NNNN>_sigma.png` — per-iteration Tikhonov term
 - `results/inversion/models/final_result.npz` — final + initial + true arrays
-- `results/inversion/misfit/misfit_curve.png` — L2 convergence plot
+- `results/inversion/models/#Output_FINAL_Converged_Models_at_iteration=<NNNN>_epsr.png` — final εᵣ
+- `results/inversion/models/#Output_FINAL_Converged_Models_at_iteration=<NNNN>_sigma.png` — final σ
+- `results/inversion/misfit/#Output_L2_ratio_curve.png` — L2 convergence plot
 - `results/inversion/logs/run_log.txt` — full run metadata
+
+Where `<nw>` = number of GPRFM frequencies (10 by default) and `<NNNN>` = 4-digit zero-padded iteration number.
 
 ---
 
@@ -541,6 +568,8 @@ FAILED: 1 test(s) failed.
 | `--stag1` and `--stag2` | Mutually exclusive | Error: only one stencil allowed |
 | `--nf N` and `--freq-step HZ` | Mutually exclusive | `--freq-step` takes precedence over `--nf` |
 | `--init-smooth PX` and `--init-epsr V` | Mutually exclusive for FWI | `--init-epsr` overrides smooth |
+| `--step-epsr S` and config `step_init_epsr` | CLI takes precedence | Overrides YAML value |
+| `--step-sigma S` and config `step_init_sigma` | CLI takes precedence | Overrides YAML value |
 
 ### Flag dependencies
 
@@ -566,7 +595,11 @@ FAILED: 1 test(s) failed.
 | `--n-offsets N` | >= 1 | CMP: number of source-receiver offset pairs |
 | `--lambda-sigma V` | >= 0 | 0 disables Tikhonov regularisation |
 | `--step-init V` | any float; <= 0 for auto | Auto = L2 / ‖gradient‖² |
+| `--step-epsr S` | > 0 | Max Δεᵣ per iteration; config default 0.5 (7% of εᵣ range) |
+| `--step-sigma S` | > 0 | Max Δσ per iteration; config default 5e-4 (2.5% of σ range) |
 | `--max-iter N` | >= 1 | Convergence may trigger early stop |
+| `--patience N` | >= 1 | Early-stop window; config default 8 |
+| `--warmup N` | >= 0 | Iterations before early-stop activates; config default 5 |
 
 ### Frequency mode selection
 

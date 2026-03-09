@@ -37,7 +37,7 @@ initial_model:
 
 # Inversion parameters (MATLAB: LBFGS, Wolfe line search)
 inversion:
-  max_iter: 200           # was 50; give L-BFGS room to converge (MATLAB: 1500)
+  max_iter: 1500          # match MATLAB
   patience: 15            # was 8; L-BFGS needs more patience
   warmup_iters: 10        # was 5; L-BFGS builds curvature slowly
   step_type: linesearch

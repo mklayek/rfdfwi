@@ -1,0 +1,21 @@
+rfdfwi FWI run log
+==================================================
+Progress log : results\test_lbfgs2\logs\progress_20260306_185828.txt
+Date/time    : 2026-03-06 18:58:28
+Config       : D:\rfdfwi\input\input_inversion.yaml
+Grid style   : stag2
+Workers      : 15
+True model   : inputmodel/model_epsr.npy  (shape (200, 200))
+Init model   : Gaussian-smoothed true model (sigma=6.0 px)
+Frequencies  : GPRFM 10 discrete (50-200 MHz)
+Sources      : 82  Receivers: 162
+Iterations   : 3
+L2 initial   : 4.792257e+04
+L2 final     : 4.292965e+04
+L2 ratio     : 8.958e-01
+Elapsed      : 579.8 s
+
+Per-iteration L2:
+  iter    1: 4.792257e+04  step=1.250e-01
+  iter    2: 4.302560e+04  step=3.125e-02
+  iter    3: 4.292965e+04  step=0.000e+00

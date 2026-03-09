@@ -35,6 +35,8 @@ Python code written during Postdoc @ March 2026:
 -->
 # RFDFWI — Full Reference Manual
 
+> **Repository:** https://github.com/mklayek/rfdfwi
+
 > **Python port of the MATLAB RFDFWI toolbox.**
 > 2-D Frequency-Domain Finite-Difference (FDFD) forward modelling and
 > Full-Waveform Inversion (FWI) for Ground-Penetrating Radar (GPR).
@@ -180,7 +182,7 @@ examples/
 
 ```bash
 # 1 — clone the repository
-git clone <repository-url>
+git clone https://github.com/mklayek/rfdfwi
 cd rfdfwi
 
 # 2 — create the conda environment
@@ -292,13 +294,21 @@ rfdfwi/
 │   │                              sg_wiggle_<tags>.png
 │   └── inversion/
 │       ├── obs/                   d_obs.npz (synthetic observed data)
-│       ├── models/                iter_<N>_epsr.png, iter_<N>_sigma.png,
+│       ├── models/                true_model_epsr.png, true_model_sigma.png,
+│       │                          #0initial_model_epsr.png, #0initial_model_sigma.png,
+│       │                          000Output_model_at_iteration=<NNNN>_epsr.png,
+│       │                          000Output_model_at_iteration=<NNNN>_sigma.png,
+│       │                          #Output_FINAL_Converged_Models_at_iteration=<NNNN>_epsr.png,
+│       │                          #Output_FINAL_Converged_Models_at_iteration=<NNNN>_sigma.png,
 │       │                          final_result.npz
-│       ├── gradient/              iter_<N>_grad_epsr.png, grad_sigma.png
-│       ├── hessian/               iter_<N>_hess_epsr.png, hess_sigma.png
-│       ├── search_direction/      iter_<N>_dir_epsr.png, dir_sigma.png
-│       ├── tikhonov/              iter_<N>_tikh_epsr.png, tikh_sigma.png
-│       ├── misfit/                misfit_curve.png
+│       ├── gradient/              02grad_iteration_<nw>_iter=<NNNN>_epsr.png,
+│       │                          02grad_iteration_<nw>_iter=<NNNN>_sigma.png
+│       ├── hessian/               03HESS_iteration_<nw>_<NNNN>_epsr.png,
+│       │                          03HESS_iteration_<nw>_<NNNN>_sigma.png
+│       ├── search_direction/      04Hgrad_iteration_<NNNN>_epsr.png,
+│       │                          04Hgrad_iteration_<NNNN>_sigma.png
+│       ├── tikhonov/              05Tikhonov_iter=<NNNN>_sigma.png
+│       ├── misfit/                #Output_L2_ratio_curve.png
 │       └── logs/                  run_log.txt
 ├── docs/
 │   ├── MANUAL.md                  This file — full reference manual
@@ -446,37 +456,36 @@ acquisition:
 
 # -- Inversion block ---------------------------------------------------------
 inversion:
-  max_iter: 20          # Maximum FWI iterations
-  conv_tol: 5.0e-5      # Stop when L2/L2[0] <= conv_tol (MATLAB default)
+  max_iter: 50          # Maximum FWI iterations
+  patience: 8           # Early-stop: N consecutive non-decreasing iters (after warmup)
+  warmup_iters: 5       # Skip first N iters before applying early-stop check
+  conv_ratio: 1.0e-2    # Stop when L2/L2[0] <= conv_ratio (1% of initial L2)
+  stepmax: 12           # Max Armijo backtracking steps (covers 2^12 step range)
+  scale_fac: 2.0        # Step reduction factor per backtrack
+  c1_wolfe: 1.0e-4      # Armijo sufficient-decrease constant
+  step_init_epsr: 0.5   # Max Δεᵣ per iteration (7% of εᵣ range ≈ 7.0)
+  step_init_sigma: 5.0e-4  # Max Δσ per iteration (2.5% of σ range ≈ 0.02 S/m)
 
   # Initial model
   initial_model:
-    type: smooth         # 'smooth' = Gaussian-blur of true model (MATLAB default)
-    smooth_px: 6.0       # Gaussian sigma [pixels] (MATLAB default)
+    type: smooth         # 'smooth' = Gaussian-blur of true model (MATLAB imgaussfilt default)
+    smooth_px: 6.0       # Gaussian sigma [pixels] — matches MATLAB imgaussfilt(eps_model, 6)
     # Alternative: type: homogeneous
     # epsr:  4.0
     # sigma: 3e-3
 
   # Parameter bounds (applied after each update)
   bounds:
-    epsr_min:  1.0       # Minimum relative permittivity
-    epsr_max:  25.0      # Maximum relative permittivity
-    sigma_min: 0.0       # Minimum conductivity [S/m]
-    sigma_max: 1.0       # Maximum conductivity [S/m]
+    epsr_min:  0.5       # Covers dry-sand cross1 (true εᵣ = 1.0)
+    epsr_max:  10.0      # Covers clay cross2 (true εᵣ = 8.0) with margin
+    sigma_min: 0.05e-3   # Below dry-sand σ = 0.1e-3 S/m
+    sigma_max: 15.0e-3   # Above clay σ = 10e-3 S/m
 
   # Tikhonov regularisation
   regularization:
     type: tikhonov       # Laplacian smoothing on sigma
-    LAMBDA_1: 2.0e-4     # Regularisation weight on sigma  (MATLAB default)
-    LAMBDA_2: 0.0        # Regularisation weight on epsr   (MATLAB: 0)
-
-  # Armijo backtracking line search
-  line_search:
-    STEPMAX:  3          # Max backtracking steps
-    SCALEFAC: 2          # Step reduction factor per backtrack
-    C1:       1.0e-4     # Armijo sufficient-decrease constant
-    step_init: auto      # 'auto' = L2 / ||gradient||^2 (MATLAB default)
-                         # Or set a float to fix the initial step
+    lambda_sigma: 2.0e-4 # Regularisation weight on sigma  (MATLAB LAMBDA_1)
+    lambda_epsr: 0.0     # Regularisation weight on epsr   (MATLAB: 0)
 
   # Output control
   output:
@@ -492,17 +501,21 @@ inversion:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `inversion.max_iter` | int | 20 | Maximum iterations |
-| `inversion.conv_tol` | float | 5e-5 | Convergence: stop when L2/L2[0] <= tol |
-| `inversion.regularization.LAMBDA_1` | float | 2e-4 | Tikhonov weight on sigma |
-| `inversion.regularization.LAMBDA_2` | float | 0.0 | Tikhonov weight on epsr |
-| `inversion.line_search.STEPMAX` | int | 3 | Max Armijo backtrack steps |
-| `inversion.line_search.SCALEFAC` | float | 2.0 | Step reduction per backtrack |
-| `inversion.line_search.C1` | float | 1e-4 | Armijo sufficient-decrease constant |
-| `inversion.bounds.epsr_min` | float | 1.0 | Lower bound on epsr |
-| `inversion.bounds.epsr_max` | float | 25.0 | Upper bound on epsr |
-| `inversion.bounds.sigma_min` | float | 0.0 | Lower bound on sigma [S/m] |
-| `inversion.bounds.sigma_max` | float | 1.0 | Upper bound on sigma [S/m] |
+| `inversion.max_iter` | int | 50 | Maximum iterations |
+| `inversion.patience` | int | 8 | Early-stop after N consecutive non-decreasing misfit iterations |
+| `inversion.warmup_iters` | int | 5 | Iterations to skip before early-stop activates |
+| `inversion.conv_ratio` | float | 1e-2 | Convergence: stop when L2/L2[0] <= conv_ratio (1% of initial) |
+| `inversion.stepmax` | int | 12 | Max Armijo backtrack steps (covers 2^12 step range) |
+| `inversion.scale_fac` | float | 2.0 | Step reduction factor per backtrack |
+| `inversion.c1_wolfe` | float | 1e-4 | Armijo sufficient-decrease constant |
+| `inversion.step_init_epsr` | float | 0.5 | Max Δεᵣ per iteration (7% of εᵣ range ≈ 7.0) |
+| `inversion.step_init_sigma` | float | 5e-4 | Max Δσ per iteration (2.5% of σ range ≈ 0.02 S/m) |
+| `inversion.regularization.lambda_sigma` | float | 2e-4 | Tikhonov weight on sigma (MATLAB LAMBDA_1) |
+| `inversion.regularization.lambda_epsr` | float | 0.0 | Tikhonov weight on epsr (MATLAB LAMBDA_2) |
+| `inversion.bounds.epsr_min` | float | 0.5 | Lower bound on εᵣ (covers dry-sand cross1, true εᵣ=1.0) |
+| `inversion.bounds.epsr_max` | float | 10.0 | Upper bound on εᵣ (covers clay cross2, true εᵣ=8.0) |
+| `inversion.bounds.sigma_min` | float | 0.05e-3 | Lower bound on σ [S/m] (below dry-sand σ=0.1e-3) |
+| `inversion.bounds.sigma_max` | float | 15.0e-3 | Upper bound on σ [S/m] (above clay σ=10e-3) |
 
 ---
 
@@ -870,12 +883,14 @@ Observed data shape: `d_obs[n_src, n_freq, n_rec]` complex128.
 | *(all common args)* | -- | -- | See CLI_REFERENCE.md common table |
 | `--true-epsr V` | float | from config model | Homogeneous true epsr (overrides YAML model) |
 | `--true-sigma V` | float | from config model | Homogeneous true sigma [S/m] |
-| `--init-smooth PX` | float | 6.0 | Gaussian smooth [pixels], true->initial model |
+| `--init-smooth PX` | float | 6.0 | Gaussian smooth [pixels], true->initial model (MATLAB default) |
 | `--init-epsr V` | float | None | Homogeneous initial epsr (overrides --init-smooth) |
 | `--init-sigma V` | float | None | Homogeneous initial sigma [S/m] |
-| `--max-iter N` | int | from config | Override inversion max iterations |
+| `--max-iter N` | int | from config (50) | Override inversion max iterations |
 | `--lambda-sigma V` | float | from config | Override Tikhonov LAMBDA_1 (MATLAB: 2e-4) |
 | `--step-init V` | float | auto | Override initial step (<=0 = auto-scale) |
+| `--step-epsr S` | float | from config (0.5) | Override `step_init_epsr` — max Δεᵣ per iteration |
+| `--step-sigma S` | float | from config (5e-4) | Override `step_init_sigma` — max Δσ per iteration |
 | `--fc-low HZ` | float | None | Switch to linspace sweep: start frequency |
 | `--fc-high HZ` | float | None | Linspace sweep: end frequency |
 | `--nf N` | int | None | Linspace sweep: number of frequencies |
@@ -899,11 +914,26 @@ python examples/run_inversion_example.py --stag2 --ncpus 15 --lambda-sigma 2e-4 
 | File | Description |
 |------|-------------|
 | `results/inversion/obs/d_obs.npz` | Synthetic observed data [n_src, n_freq, n_rec] complex |
-| `results/inversion/models/iter_<N>_epsr.png` | epsr model at iteration N |
-| `results/inversion/models/iter_<N>_sigma.png` | sigma model at iteration N |
+| `results/inversion/models/true_model_epsr.png` | True εᵣ model |
+| `results/inversion/models/true_model_sigma.png` | True σ model |
+| `results/inversion/models/#0initial_model_epsr.png` | Initial εᵣ model |
+| `results/inversion/models/#0initial_model_sigma.png` | Initial σ model |
+| `results/inversion/models/000Output_model_at_iteration=<NNNN>_epsr.png` | epsr model at iteration N |
+| `results/inversion/models/000Output_model_at_iteration=<NNNN>_sigma.png` | sigma model at iteration N |
+| `results/inversion/gradient/02grad_iteration_<nw>_iter=<NNNN>_epsr.png` | εᵣ gradient at iteration N |
+| `results/inversion/gradient/02grad_iteration_<nw>_iter=<NNNN>_sigma.png` | σ gradient at iteration N |
+| `results/inversion/hessian/03HESS_iteration_<nw>_<NNNN>_epsr.png` | εᵣ pseudo-Hessian at iteration N |
+| `results/inversion/hessian/03HESS_iteration_<nw>_<NNNN>_sigma.png` | σ pseudo-Hessian at iteration N |
+| `results/inversion/search_direction/04Hgrad_iteration_<NNNN>_epsr.png` | εᵣ search direction at iteration N |
+| `results/inversion/search_direction/04Hgrad_iteration_<NNNN>_sigma.png` | σ search direction at iteration N |
+| `results/inversion/tikhonov/05Tikhonov_iter=<NNNN>_sigma.png` | Tikhonov regularisation term at iteration N |
 | `results/inversion/models/final_result.npz` | final + initial + true model arrays |
-| `results/inversion/misfit/misfit_curve.png` | L2 convergence plot (log scale) |
+| `results/inversion/models/#Output_FINAL_Converged_Models_at_iteration=<NNNN>_epsr.png` | Final recovered εᵣ |
+| `results/inversion/models/#Output_FINAL_Converged_Models_at_iteration=<NNNN>_sigma.png` | Final recovered σ |
+| `results/inversion/misfit/#Output_L2_ratio_curve.png` | L2 convergence plot (log scale) |
 | `results/inversion/logs/run_log.txt` | Run metadata + per-iteration misfit table |
+
+`<nw>` = number of GPRFM frequencies (10 by default); `<NNNN>` = 4-digit zero-padded iteration number.
 
 The iteration callback `extras` dict contains:
 `L2`, `grad_epsr`, `grad_sigma`, `hess_epsr`, `hess_sigma`, `tikh_epsr`,
@@ -1050,6 +1080,13 @@ hess_sigma[i,k] += omega^2 * |u[i,k]|^2   summed over freq, src
 The search direction is: `dir = -grad / (hess + eps)` where `eps` is a small
 stabilisation constant.
 
+**Interior-only PML masking:** Hessian preconditioning and direction normalisation
+operate only over interior cells `[npml:nz-npml, npml:nx-npml]`. PML cells carry
+amplified wavefield amplitudes (46–100× larger) that would otherwise dominate the
+Hessian maximum and compress the interior updates toward zero. Direction values in
+the PML border are set to zero before the line search so that the update is confined
+to the physical domain.
+
 ### 8.9 Tikhonov regularisation
 
 Laplacian smoothing is applied to the conductivity gradient:
@@ -1064,14 +1101,41 @@ The epsr regularisation weight `LAMBDA_2` is 0 by default (no epsr smoothing).
 
 ### 8.10 Armijo backtracking line search
 
-Starting from `step_init` (auto: `L2 / ||gradient||^2`), the step size is halved
-up to `STEPMAX` times until the Armijo sufficient-decrease condition is met:
+**Separate per-parameter initial steps:** Because the εᵣ range (~7) and σ range
+(~0.02 S/m) differ by a factor of ~350, a single step size cannot correctly scale
+both parameters. Two independent initial steps are used:
 
 ```
-L2(m + step * dir) <= L2(m) - C1 * step * ||gradient||^2
+step_init_epsr  — max Δεᵣ per iteration   (config default: 0.5, ~7% of εᵣ range)
+step_init_sigma — max Δσ per iteration    (config default: 5e-4, ~2.5% of σ range)
 ```
 
-Default parameters: `STEPMAX=3`, `SCALEFAC=2`, `C1=1e-4`.
+Both step sizes are halved together on each backtracking trial. They can be
+overridden on the CLI with `--step-epsr` and `--step-sigma`.
+
+**Per-parameter normalisation:** Before applying the step, each search direction
+is normalised independently over interior cells only:
+
+```
+dir_epsr_norm  =  dir_epsr  /  max(|dir_epsr_interior|)
+dir_sigma_norm =  dir_sigma /  max(|dir_sigma_interior|)
+```
+
+Independent normalisation ensures both εᵣ and σ receive equal-scale updates,
+preventing the σ direction from being suppressed relative to the εᵣ direction due
+to the ω⁴ vs ω² Hessian scaling difference.
+
+**Simplified Armijo condition:** The backtracking accepts a step as soon as the
+total L2 misfit strictly decreases:
+
+```
+L2_try  <  L2_current
+```
+
+Up to `STEPMAX=12` halvings are attempted (step range `[step, step/2^12]`).
+If no trial satisfies the condition, the smallest step is accepted.
+
+Default parameters: `STEPMAX=12`, `SCALEFAC=2`.
 
 ---
 
@@ -1124,30 +1188,38 @@ Default parameters: `STEPMAX=3`, `SCALEFAC=2`, `C1=1e-4`.
 | | `sigma_init` | (nz, nx) float64 | Initial model sigma |
 | | `epsr_true` | (nz, nx) float64 | True model epsr |
 | | `sigma_true` | (nz, nx) float64 | True model sigma |
-| `iter_<N>_epsr.png` | -- | -- | epsr at iteration N, jet colormap |
-| `iter_<N>_sigma.png` | -- | -- | sigma at iteration N, jet colormap |
-| `misfit_curve.png` | -- | -- | L2/L2[0] vs iteration, log scale |
+| `000Output_model_at_iteration=<NNNN>_epsr.png` | -- | -- | epsr at iteration N, seismic colormap |
+| `000Output_model_at_iteration=<NNNN>_sigma.png` | -- | -- | sigma at iteration N, seismic colormap |
+| `true_model_epsr.png` | -- | -- | True εᵣ model (written once before loop) |
+| `true_model_sigma.png` | -- | -- | True σ model (written once before loop) |
+| `#0initial_model_epsr.png` | -- | -- | Initial εᵣ model (written once before loop) |
+| `#0initial_model_sigma.png` | -- | -- | Initial σ model (written once before loop) |
+| `#Output_FINAL_Converged_Models_at_iteration=<NNNN>_epsr.png` | -- | -- | Final εᵣ model |
+| `#Output_FINAL_Converged_Models_at_iteration=<NNNN>_sigma.png` | -- | -- | Final σ model |
+| `#Output_L2_ratio_curve.png` (in `misfit/`) | -- | -- | L2/L2[0] vs iteration, log scale |
 
 ### run_log.txt format
 
 ```
 RFDFWI Run Log
 ==============
-Date       : YYYY-MM-DD HH:MM:SS
-Stencil    : stag2
-ncpus      : 15
-n_src      : 82
-n_freq     : 10
-n_rec      : 162
-LAMBDA_1   : 2.0e-04
-conv_tol   : 5.0e-05
+Date         : YYYY-MM-DD HH:MM:SS
+Stencil      : stag2
+ncpus        : 15
+n_src        : 82
+n_freq       : 10
+n_rec        : 162
+LAMBDA_1     : 2.0e-04
+conv_ratio   : 1.0e-02
+step_epsr    : 0.5
+step_sigma   : 5.0e-04
 
-Iteration  L2            L2/L2[0]      Step
----------  ------------  ------------  --------
-0          1.2345e+00    1.0000e+00    --
-1          9.8765e-01    8.0000e-01    3.2e-05
+Iteration  L2            L2/L2[0]      step_e    step_s
+---------  ------------  ------------  --------  --------
+0          1.2345e+00    1.0000e+00    --        --
+1          9.8765e-01    8.0000e-01    0.500     5.0e-04
 ...
-CONVERGED at iteration N: L2/L2[0] = 4.8e-05
+CONVERGED at iteration N: L2/L2[0] = 8.5e-03
 ```
 
 ---
@@ -1268,14 +1340,15 @@ CuPy-based sparse solver. There is no loss of accuracy or correctness when
 | `ModuleNotFoundError: scipy` | SciPy not installed | `pip install scipy` |
 | `Config not found` | Running from wrong directory | Run from project root `D:\rfdfwi` |
 | Wavefield all zeros | Wrong source index (outside domain) | Check `--source-ix` is in [npx, nx-npx-1] |
-| Misfit not decreasing | Step size too large or regularisation too weak | Reduce `step_init` or increase `LAMBDA_1` |
+| Misfit not decreasing | Step size too large or regularisation too weak | Reduce `--step-epsr` / `--step-sigma` or increase `LAMBDA_1` |
+| Model update capped at bounds | Bounds too tight for true model range | Widen `epsr_min/max` or `sigma_min/max` in YAML; current defaults cover the mkl_two_cross model |
 | Slow forward runs | ncpus=1 default | Increase `--ncpus` (up to number of sources) |
 | Memory error on large grids | N x N sparse matrix too large | Reduce `nx`/`nz` or `nf` |
 | TIFF not opening in MATLAB | Matplotlib format mismatch | Ensure `format="tiff"` (default behaviour) |
 | Results written to wrong directory | Relative vs absolute path confusion | Run from project root or use `--results-dir` |
 | `impedance_matrix.npz` not created | Flag not set | Add `--impedance-matrix` to the command |
 | Validation test fails: residual | Stencil assembly bug | Check stag1/stag2 flag and PML parameters |
-| FWI diverges after first iteration | Initial model too far from true | Use `--init-smooth 6.0` (smooth-then-start) |
+| FWI diverges after first iteration | Step size too large or initial model too far from true | Use `--init-smooth 6.0` (MATLAB default); reduce step sizes via `--step-epsr` and `--step-sigma` |
 | conda env not activating | Wrong environment name | Use `conda activate rfdfwimkl` (not rfdfwi-env) |
 | B-scan has artefacts at edges | PML too thin | Increase `pml.npx`/`pml.npz` (try 15-20) |
 
@@ -1424,11 +1497,15 @@ def run_inversion(
     a0_cfs: float,
     stencil: str = 'stag1',
     ncpus: int = 1,
-    max_iter: int = 20,
+    max_iter: int = 50,
     LAMBDA_1: float = 2e-4,
     LAMBDA_2: float = 0.0,
-    conv_tol: float = 5e-5,
+    conv_ratio: float = 1e-2,
     bounds: dict = None,
+    step_init_epsr: float = 0.5,
+    step_init_sigma: float = 5e-4,
+    patience: int = 8,
+    warmup_iters: int = 5,
     callback: callable = None,
 ) -> tuple:
     """Run FWI loop; return (epsr_final, sigma_final)."""

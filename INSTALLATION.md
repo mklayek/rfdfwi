@@ -35,6 +35,8 @@ Python code written during Postdoc @ March 2026:
 -->
 # Installation & Usage Guide
 
+> **Repository:** https://github.com/mklayek/rfdfwi
+
 ## Requirements
 
 | Requirement | Minimum version |
@@ -58,7 +60,7 @@ Optional (GPU acceleration, future):
 ### 1 — Clone the repository
 
 ```
-git clone <repository-url>
+git clone https://github.com/mklayek/rfdfwi
 cd rfdfwi
 ```
 
@@ -152,12 +154,21 @@ rfdfwi/
 │   │   └── wavefield/          wavefield_real.png, wavefield_real.tiff
 │   └── inversion/
 │       ├── obs/                d_obs.npz (synthetic observed data)
-│       ├── models/             iter_N_epsr.png, iter_N_sigma.png, final_result.npz
-│       ├── gradient/           iter_N_grad_epsr.png, grad_sigma.png
-│       ├── hessian/            iter_N_hess_epsr.png, hess_sigma.png
-│       ├── search_direction/   iter_N_dir_epsr.png, dir_sigma.png
-│       ├── tikhonov/           iter_N_tikh_epsr.png, tikh_sigma.png
-│       ├── misfit/             misfit_curve.png
+│       ├── models/             true_model_epsr.png, true_model_sigma.png,
+│       │                       #0initial_model_epsr.png, #0initial_model_sigma.png,
+│       │                       000Output_model_at_iteration=NNNN_epsr.png,
+│       │                       000Output_model_at_iteration=NNNN_sigma.png,
+│       │                       #Output_FINAL_Converged_Models_at_iteration=NNNN_epsr.png,
+│       │                       #Output_FINAL_Converged_Models_at_iteration=NNNN_sigma.png,
+│       │                       final_result.npz
+│       ├── gradient/           02grad_iteration_nw_iter=NNNN_epsr.png,
+│       │                       02grad_iteration_nw_iter=NNNN_sigma.png
+│       ├── hessian/            03HESS_iteration_nw_NNNN_epsr.png,
+│       │                       03HESS_iteration_nw_NNNN_sigma.png
+│       ├── search_direction/   04Hgrad_iteration_NNNN_epsr.png,
+│       │                       04Hgrad_iteration_NNNN_sigma.png
+│       ├── tikhonov/           05Tikhonov_iter=NNNN_sigma.png
+│       ├── misfit/             #Output_L2_ratio_curve.png
 │       └── logs/               run_log.txt
 ├── obs/                        Observed field data (optional, real-data inversion)
 ├── docs/                       Extended documentation
@@ -346,12 +357,18 @@ python examples/run_inversion_example.py \
 
 **Output:**
 ```
-results/inversion/obs/d_obs.npz                  Synthetic observed data [n_src, n_freq, n_rec]
-results/inversion/models/iter_N_epsr.png         Recovered epsr at iteration N
-results/inversion/models/iter_N_sigma.png        Recovered sigma at iteration N
-results/inversion/models/final_result.npz        Final + initial + true model arrays
-results/inversion/misfit/misfit_curve.png        L2 convergence curve (log scale)
-results/inversion/logs/run_log.txt               Run metadata and full misfit history
+results/inversion/obs/d_obs.npz                                              Synthetic observed data [n_src, n_freq, n_rec]
+results/inversion/models/true_model_epsr.png                                 True epsr model
+results/inversion/models/true_model_sigma.png                                True sigma model
+results/inversion/models/#0initial_model_epsr.png                            Initial epsr model
+results/inversion/models/#0initial_model_sigma.png                           Initial sigma model
+results/inversion/models/000Output_model_at_iteration=NNNN_epsr.png          Recovered epsr at iteration N
+results/inversion/models/000Output_model_at_iteration=NNNN_sigma.png         Recovered sigma at iteration N
+results/inversion/models/#Output_FINAL_Converged_Models_at_iteration=NNNN_epsr.png  Final recovered epsr
+results/inversion/models/#Output_FINAL_Converged_Models_at_iteration=NNNN_sigma.png Final recovered sigma
+results/inversion/models/final_result.npz                                    Final + initial + true model arrays
+results/inversion/misfit/#Output_L2_ratio_curve.png                          L2 convergence curve (log scale)
+results/inversion/logs/run_log.txt                                           Run metadata and full misfit history
 ```
 
 ---
@@ -420,17 +437,25 @@ initial_model:
   epsr: 6.0
   sigma: 0.005
 inversion:
-  max_iter: 20
-  step_type: linesearch   # linesearch | fixed
-  step_init: 1.0
+  max_iter: 50             # maximum FWI iterations
+  patience: 8              # early-stop after N non-decreasing misfit iters (after warmup)
+  warmup_iters: 5          # iters to skip before early-stop activates
+  conv_ratio: 1.0e-2       # stop when L2/L2[0] <= conv_ratio
+  step_type: linesearch    # linesearch | fixed
+  step_init: 1.0           # fallback if step_init_epsr/sigma not set
+  step_init_epsr: 0.5      # max Δεᵣ per iteration
+  step_init_sigma: 5.0e-4  # max Δσ per iteration
+  stepmax: 12              # max Armijo backtracking trials
+  scale_fac: 2.0           # step reduction factor
   regularization:
     type: tikhonov
-    alpha: 1e-6
+    lambda_sigma: 2.0e-4   # Tikhonov weight for sigma
+    lambda_epsr: 0.0       # Tikhonov weight for epsr
   bounds:
-    epsr_min: 1.0
-    epsr_max: 25.0
-    sigma_min: 0.0
-    sigma_max: 1.0
+    epsr_min: 1.0          # lower bound on epsr — set below true minimum
+    epsr_max: 25.0         # upper bound on epsr — set above true maximum
+    sigma_min: 0.0         # lower bound on sigma [S/m]
+    sigma_max: 1.0         # upper bound on sigma [S/m]
 output:
   dir: results/inversion
   save_every_iter: true
@@ -459,6 +484,6 @@ print(A.shape, A.dtype)
 | `ModuleNotFoundError: scipy` | `pip install scipy` |
 | `Config not found` | Run from the `rfdfwi/` root directory, or supply `--config` |
 | Slow forward runs | Increase `--ncpus` (up to number of sources) |
-| Misfit not decreasing | Reduce `step_init` or increase `alpha` in inversion config |
+| Misfit not decreasing | Reduce `step_init_epsr` / `step_init_sigma` or increase `lambda_sigma` in inversion config |
 | Memory error on large grids | Reduce `nx`/`nz` or number of sources |
 | TIFF not opening in MATLAB | Ensure Matplotlib saved with `format="tiff"` (default behaviour) |

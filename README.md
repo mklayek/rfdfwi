@@ -16,6 +16,7 @@ RFDFWI toolbox (Layek & Sengupta 2024).
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Platform: Windows/Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+[![GitHub](https://img.shields.io/badge/GitHub-mklayek%2Frfdfwi-black?logo=github)](https://github.com/mklayek/rfdfwi)
 
 ---
 
@@ -89,6 +90,8 @@ Both must print PASS before trusting any results.
 | [docs/MATLAB_to_Python_Mapping.md](docs/MATLAB_to_Python_Mapping.md) | Function-level MATLAB -> Python mapping table |
 | [CLAUDE.md](CLAUDE.md) | Developer notes and internal architecture |
 
+> Repository: https://github.com/mklayek/rfdfwi
+
 ---
 
 ## Project summary
@@ -103,20 +106,18 @@ Both must print PASS before trusting any results.
 | Acquisition | 4-sided: 82 sources, 162 receivers |
 | Default stencil | stag2 (recommended) |
 | Tikhonov LAMBDA_1 | 2e-4 (MATLAB default) |
-| Convergence criterion | L2/L2[0] <= 5e-5 |
+| Convergence criterion | L2/L2[0] <= 1e-2 (1% of initial L2) |
+| Max iterations | 50 |
+| Early-stop patience | 8 consecutive non-decreasing iterations (after 5-iter warmup) |
 
 ---
 
 ## References
 
-<<<<<<< HEAD
 - Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite difference
   frequency domain full waveform inversion of GPR data: A guide for sedimentary
   architecture modeling. *Pure and Applied Geophysics*, 181, 2107–2130.
   https://doi.org/10.1007/s00024-024-03520-1
-=======
-- Layek, M. K., & Sengupta, P. (2024). Multi-parameter imaging by finite difference frequency domain full waveform inversion of GPR data: A guide for sedimentary architecture modeling. *Pure and Applied Geophysics*, 181, 2107–2130. https://doi.org/10.1007/s00024-024-03520-1
->>>>>>> ca6c3653a1c0b0893fa44545e4d3ca6591a2cf51
 - Hustedt, B., Operto, S., & Virieux, J. (2004). Mixed-grid and staggered-grid
   finite-difference methods for frequency-domain acoustic wave modelling.
   *Geophysical Journal International*, 157(3), 1269-1296.
@@ -159,3 +160,4 @@ Geophysics & AI Lab, Department of Energy & Resources Engineering
 Chonnam National University, Gwangju, Republic of Korea [61186]  
 지구물리 및 인공지능 연구실, 에너지자원공학과, 전남대학교, 광주광역시 [61186]  
 Email: layek.mk@gmail.com
+GitHub: [mklayek/rfdfwi](https://github.com/mklayek/rfdfwi)

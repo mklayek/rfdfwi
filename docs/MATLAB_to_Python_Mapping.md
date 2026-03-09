@@ -35,6 +35,8 @@ Python code written during Postdoc @ March 2026:
 -->
 # MATLAB to Python Mapping (RFDFWI)
 
+> **Repository:** https://github.com/mklayek/rfdfwi
+
 Maps the MATLAB RFDFWI codebase (`inp_GPRmodel*.m`, `create_models_mkl.m`,
 `PML_9p_CFS_stag_para.m`, `GPRFM.m`, `RFDFWI.m`) to the Python implementation.
 
@@ -150,14 +152,35 @@ python_ix = npml + matlab_col - 1
 
 ## Inversion bounds
 
-| MATLAB | Python | Value |
-|--------|--------|-------|
-| `model1.epsr_low = 3.8*eps0` | `bounds.epsr_min: 3.8` | |
-| `model1.epsr_high = 33.2*eps0` | `bounds.epsr_max: 33.2` | |
-| `model1.sigr_low = 0.08e-3` | `bounds.sigma_min: 0.08e-3` | |
-| `model1.sigr_high = 20.2e-3` | `bounds.sigma_max: 20.2e-3` | |
-| `model1.LAMBDA_1 = 2e-4` | `regularization.alpha: 1e-4` | Tikhonov weight |
-| `model1.STAG = 2` | `--stag2` CLI flag | Staggered grid variant |
+The Python bounds are widened relative to the original MATLAB values to fully
+cover the mkl_two_cross model anomalies (dry-sand cross1: εᵣ=1.0, σ=0.1e-3;
+clay cross2: εᵣ=8.0, σ=10e-3):
+
+| MATLAB | Python | Python value | Notes |
+|--------|--------|-------------|-------|
+| `model1.epsr_low = 3.8*eps0` | `bounds.epsr_min` | `0.5` | Covers cross1 (true εᵣ=1.0) |
+| `model1.epsr_high = 33.2*eps0` | `bounds.epsr_max` | `10.0` | Covers cross2 (true εᵣ=8.0) |
+| `model1.sigr_low = 0.08e-3` | `bounds.sigma_min` | `0.05e-3` | Below cross1 σ=0.1e-3 |
+| `model1.sigr_high = 20.2e-3` | `bounds.sigma_max` | `15.0e-3` | Above cross2 σ=10e-3 |
+| `model1.LAMBDA_1 = 2e-4` | `regularization.lambda_sigma` | `2e-4` | Tikhonov weight for σ |
+| `model1.STAG = 2` | `--stag2` CLI flag | — | Staggered grid variant |
+
+---
+
+## Inversion convergence and step parameters
+
+| Python YAML key | Value | Notes |
+|-----------------|-------|-------|
+| `inversion.max_iter` | 50 | Increased from MATLAB default of 20 |
+| `inversion.conv_ratio` | 1.0e-2 | Stop at 1% of initial L2 (realistic for noisy synthetic data) |
+| `inversion.patience` | 8 | Early-stop window after warmup |
+| `inversion.warmup_iters` | 5 | Iterations before early-stop activates |
+| `inversion.step_init_epsr` | 0.5 | Max Δεᵣ per iteration (~7% of εᵣ range 7.0) |
+| `inversion.step_init_sigma` | 5.0e-4 | Max Δσ per iteration (~2.5% of σ range 0.02 S/m) |
+| `inversion.stepmax` | 12 | Max Armijo halvings (covers 2^12 step range) |
+| `inversion.scale_fac` | 2.0 | Step halving factor (MATLAB SCALEFAC) |
+| `inversion.c1_wolfe` | 1.0e-4 | Armijo C1 constant |
+| `inversion.sigma0` | 5.6e-3 | Conductivity normalisation reference (MATLAB sig0) |
 
 ---
 

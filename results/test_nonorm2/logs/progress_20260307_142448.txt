@@ -1,0 +1,153 @@
+[2026-03-07 14:24:48] Progress log : results\test_nonorm2\logs\progress_20260307_142448.txt
+[2026-03-07 14:24:48] Loaded true model from D:\rfdfwi\inputmodel\model_epsr.npy
+[2026-03-07 14:24:48] True model : inputmodel/model_epsr.npy  (shape (200, 200))
+[2026-03-07 14:24:48]   -> results\test_nonorm2\models\true_model_epsr.png
+[2026-03-07 14:24:48] 
+Generating observed data (82 sources x 10 freqs x 162 receivers) ...
+[2026-03-07 14:24:59]   d_obs shape: (82, 10, 162)  |max|=2.850e+03
+[2026-03-07 14:24:59]   Saved -> results\test_nonorm2\obs\d_obs.npz
+[2026-03-07 14:24:59] 
+Initial model: Gaussian-smoothed true model (sigma=6.0 px)
+[2026-03-07 14:24:59] 
+Config       : D:\rfdfwi\input\input_inversion.yaml
+[2026-03-07 14:24:59] Grid style   : stag2
+[2026-03-07 14:24:59] Domain       : 200x200  dh=0.05 m
+[2026-03-07 14:24:59] PML          : npml=10  a0_cfs=9.00e+08
+[2026-03-07 14:24:59] Acquisition  : 82 sources, 162 receivers
+[2026-03-07 14:24:59] Frequencies  : GPRFM 10 discrete (50-200 MHz)
+[2026-03-07 14:24:59] Workers      : 15
+[2026-03-07 14:24:59] Max iter     : 5
+[2026-03-07 14:24:59] 
+Starting FWI ...
+[2026-03-07 14:24:59]   Grid style : stag2
+[2026-03-07 14:24:59]   Sources    : 82  |  Receivers: 162
+[2026-03-07 14:24:59]   Frequencies: 10  (50-200 MHz)
+[2026-03-07 14:24:59]   Max iter   : 5  |  conv_ratio=5.0e-05
+[2026-03-07 14:24:59]   LAMBDA_1   : 0.0002  |  LAMBDA_2: 0.0
+[2026-03-07 14:24:59]   sigma0     : 5.600e-03  |  beta_sigma=1.0, beta_epsr=1.0
+[2026-03-07 14:24:59]   step_init  : epsr=1.000e+00  sigma=1.000e+00
+[2026-03-07 14:24:59]   STEPMAX    : 12  |  SCALEFAC=2.0  |  C1=1.0e-04
+[2026-03-07 14:24:59]   C2_wolfe   : 0.9  |  nlbfgs=5  |  use_lbfgs=True
+[2026-03-07 14:24:59]   Patience   : 15  (early stop if no decrease for 15 iters)
+[2026-03-07 14:24:59]   Warmup     : 10  (first 10 iters excluded from early-stop check)
+[2026-03-07 14:24:59] 
+============================================================
+[2026-03-07 14:24:59] [iter 1/5] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-07 14:25:01]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.444e+00  s=1.262e+03
+[2026-03-07 14:25:04]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.741e+00  s=8.284e+02
+[2026-03-07 14:25:06]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=2.901e+00  s=7.457e+02
+[2026-03-07 14:25:08]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=3.169e+00  s=7.301e+02
+[2026-03-07 14:25:10]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=3.612e+00  s=7.612e+02
+[2026-03-07 14:25:12]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=4.021e+00  s=7.908e+02
+[2026-03-07 14:25:15]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=6.044e+00  s=9.912e+02
+[2026-03-07 14:25:17]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=8.998e+00  s=1.258e+03
+[2026-03-07 14:25:19]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=1.193e+01  s=1.507e+03
+[2026-03-07 14:25:21]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=1.824e+01  s=1.962e+03
+[2026-03-07 14:25:21]   gradient done -- L2=4.792257e+04
+[2026-03-07 14:25:21]   >> L2=4.792257e+04  ratio=1.000e+00
+[2026-03-07 14:25:21]   [Steepest descent] H_max_e=9.276e+09  H_max_s=1.001e+14  |dir_e|=8.527e-04  |dir_s|=8.947e-06
+[2026-03-07 14:25:21]   step_e=1.000e+00  step_s=1.000e+00
+[2026-03-07 14:25:43]     [wolfe 1/12] alpha=1.0000e+00  L2=4.778143e+04  gs0=-5.936e+04  gts=-5.865e+04  [C2 fail]
+[2026-03-07 14:26:05]     [wolfe 2/12] alpha=2.0000e+00  L2=4.764196e+04  gs0=-5.936e+04  gts=-5.795e+04  [C2 fail]
+[2026-03-07 14:26:26]     [wolfe 3/12] alpha=4.0000e+00  L2=4.736800e+04  gs0=-5.936e+04  gts=-5.655e+04  [C2 fail]
+[2026-03-07 14:26:48]     [wolfe 4/12] alpha=8.0000e+00  L2=4.683997e+04  gs0=-5.936e+04  gts=-5.376e+04  [C2 fail]
+[2026-03-07 14:27:10]     [wolfe 5/12] alpha=1.6000e+01  L2=4.586317e+04  gs0=-5.936e+04  gts=-4.819e+04  [WOLFE OK]
+[2026-03-07 14:27:10]   [L-BFGS] curvature update OK (ys=1.786e+05, rho=5.599e-06, pairs=1)
+[2026-03-07 14:27:10]   update: |De|_max=1.364e-02  |Ds|_max=1.432e-04  er=[1.43,7.44]  s=[4.95e-04,9.01e-03]  L2_new=4.586317e+04
+[2026-03-07 14:27:10]   Callback: saving iter 1 images ...
+[2026-03-07 14:27:11]   [Callback] iter 0001: saved model/grad/hess/dir/tikh images  (L2=4.7923e+04)
+[2026-03-07 14:27:11] 
+============================================================
+[2026-03-07 14:27:11] [iter 2/5] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-07 14:27:13]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.407e+00  s=1.253e+03
+[2026-03-07 14:27:16]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.655e+00  s=7.989e+02
+[2026-03-07 14:27:18]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=2.940e+00  s=7.454e+02
+[2026-03-07 14:27:20]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=3.069e+00  s=7.102e+02
+[2026-03-07 14:27:22]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=3.635e+00  s=7.524e+02
+[2026-03-07 14:27:24]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=3.951e+00  s=7.684e+02
+[2026-03-07 14:27:26]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=5.985e+00  s=9.663e+02
+[2026-03-07 14:27:29]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=8.370e+00  s=1.146e+03
+[2026-03-07 14:27:31]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=1.031e+01  s=1.281e+03
+[2026-03-07 14:27:33]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=1.295e+01  s=1.475e+03
+[2026-03-07 14:27:33]   gradient done -- L2=4.586317e+04
+[2026-03-07 14:27:33]   >> L2=4.586317e+04  ratio=9.570e-01
+[2026-03-07 14:27:33]   [L-BFGS] 1 curvature pair(s)  |dir_e|=6.110e-02  |dir_s|=6.402e-04
+[2026-03-07 14:27:33]   step_e=1.000e+00  step_s=1.000e+00
+[2026-03-07 14:27:55]     [wolfe 1/12] alpha=1.0000e+00  L2=4.147348e+04  gs0=-3.433e+06  gts=-2.234e+05  [WOLFE OK]
+[2026-03-07 14:27:55]   [L-BFGS] curvature update OK (ys=3.209e+06, rho=3.116e-07, pairs=2)
+[2026-03-07 14:27:55]   update: |De|_max=6.110e-02  |Ds|_max=6.402e-04  er=[1.44,7.44]  s=[4.14e-04,9.00e-03]  L2_new=4.147348e+04
+[2026-03-07 14:27:55]   Callback: saving iter 2 images ...
+[2026-03-07 14:27:56]   [Callback] iter 0002: saved model/grad/hess/dir/tikh images  (L2=4.5863e+04)
+[2026-03-07 14:27:56] 
+============================================================
+[2026-03-07 14:27:56] [iter 3/5] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-07 14:27:58]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.524e+00  s=1.356e+03
+[2026-03-07 14:28:00]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.891e+00  s=9.740e+02
+[2026-03-07 14:28:02]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=3.846e+00  s=1.110e+03
+[2026-03-07 14:28:05]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=4.008e+00  s=1.143e+03
+[2026-03-07 14:28:07]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=5.518e+00  s=1.335e+03
+[2026-03-07 14:28:09]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=6.693e+00  s=1.502e+03
+[2026-03-07 14:28:11]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=1.072e+01  s=1.931e+03
+[2026-03-07 14:28:13]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=1.624e+01  s=2.399e+03
+[2026-03-07 14:28:16]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=2.491e+01  s=3.025e+03
+[2026-03-07 14:28:18]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=3.626e+01  s=3.852e+03
+[2026-03-07 14:28:18]   gradient done -- L2=4.147348e+04
+[2026-03-07 14:28:18]   >> L2=4.147348e+04  ratio=8.654e-01
+[2026-03-07 14:28:18]   [L-BFGS] 2 curvature pair(s)  |dir_e|=6.533e-03  |dir_s|=6.779e-05
+[2026-03-07 14:28:18]   step_e=1.000e+00  step_s=1.000e+00
+[2026-03-07 14:28:39]     [wolfe 1/12] alpha=1.0000e+00  L2=4.119317e+04  gs0=-1.229e+05  gts=-1.053e+05  [WOLFE OK]
+[2026-03-07 14:28:39]   [L-BFGS] curvature update OK (ys=1.765e+04, rho=5.666e-05, pairs=3)
+[2026-03-07 14:28:39]   update: |De|_max=6.533e-03  |Ds|_max=6.779e-05  er=[1.43,7.44]  s=[4.05e-04,9.00e-03]  L2_new=4.119317e+04
+[2026-03-07 14:28:39]   Callback: saving iter 3 images ...
+[2026-03-07 14:28:41]   [Callback] iter 0003: saved model/grad/hess/dir/tikh images  (L2=4.1473e+04)
+[2026-03-07 14:28:41] 
+============================================================
+[2026-03-07 14:28:41] [iter 4/5] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-07 14:28:43]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.532e+00  s=1.358e+03
+[2026-03-07 14:28:45]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.921e+00  s=9.835e+02
+[2026-03-07 14:28:47]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=3.892e+00  s=1.123e+03
+[2026-03-07 14:28:49]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=4.064e+00  s=1.160e+03
+[2026-03-07 14:28:51]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=5.612e+00  s=1.358e+03
+[2026-03-07 14:28:54]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=6.835e+00  s=1.532e+03
+[2026-03-07 14:28:56]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=1.096e+01  s=1.972e+03
+[2026-03-07 14:28:58]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=1.665e+01  s=2.455e+03
+[2026-03-07 14:29:00]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=2.564e+01  s=3.098e+03
+[2026-03-07 14:29:02]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=3.751e+01  s=3.958e+03
+[2026-03-07 14:29:02]   gradient done -- L2=4.119317e+04
+[2026-03-07 14:29:02]   >> L2=4.119317e+04  ratio=8.596e-01
+[2026-03-07 14:29:02]   [L-BFGS] 3 curvature pair(s)  |dir_e|=4.740e-02  |dir_s|=4.887e-04
+[2026-03-07 14:29:02]   step_e=1.000e+00  step_s=1.000e+00
+[2026-03-07 14:29:24]     [wolfe 1/12] alpha=1.0000e+00  L2=3.911574e+04  gs0=-1.201e+06  gts=-5.035e+05  [WOLFE OK]
+[2026-03-07 14:29:24]   [L-BFGS] curvature update OK (ys=6.977e+05, rho=1.433e-06, pairs=4)
+[2026-03-07 14:29:24]   update: |De|_max=4.740e-02  |Ds|_max=4.887e-04  er=[1.43,7.44]  s=[3.41e-04,9.00e-03]  L2_new=3.911574e+04
+[2026-03-07 14:29:24]   Callback: saving iter 4 images ...
+[2026-03-07 14:29:25]   [Callback] iter 0004: saved model/grad/hess/dir/tikh images  (L2=4.1193e+04)
+[2026-03-07 14:29:25] 
+============================================================
+[2026-03-07 14:29:25] [iter 5/5] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-07 14:29:27]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.566e+00  s=1.330e+03
+[2026-03-07 14:29:29]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=3.123e+00  s=9.936e+02
+[2026-03-07 14:29:32]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=4.020e+00  s=1.108e+03
+[2026-03-07 14:29:34]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=4.214e+00  s=1.151e+03
+[2026-03-07 14:29:36]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=5.808e+00  s=1.372e+03
+[2026-03-07 14:29:38]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=7.124e+00  s=1.555e+03
+[2026-03-07 14:29:40]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=1.131e+01  s=1.989e+03
+[2026-03-07 14:29:42]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=1.694e+01  s=2.453e+03
+[2026-03-07 14:29:44]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=2.614e+01  s=3.033e+03
+[2026-03-07 14:29:47]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=3.854e+01  s=3.919e+03
+[2026-03-07 14:29:47]   gradient done -- L2=3.911574e+04
+[2026-03-07 14:29:47]   >> L2=3.911574e+04  ratio=8.162e-01
+[2026-03-07 14:29:47]   [L-BFGS] 4 curvature pair(s)  |dir_e|=3.779e-02  |dir_s|=3.860e-04
+[2026-03-07 14:29:47]   step_e=1.000e+00  step_s=1.000e+00
+[2026-03-07 14:30:08]     [wolfe 1/12] alpha=1.0000e+00  L2=3.743826e+04  gs0=-9.322e+05  gts=-4.465e+05  [WOLFE OK]
+[2026-03-07 14:30:08]   [L-BFGS] curvature update OK (ys=4.858e+05, rho=2.059e-06, pairs=5)
+[2026-03-07 14:30:08]   update: |De|_max=3.779e-02  |Ds|_max=3.860e-04  er=[1.43,7.44]  s=[2.92e-04,9.00e-03]  L2_new=3.743826e+04
+[2026-03-07 14:30:08]   Callback: saving iter 5 images ...
+[2026-03-07 14:30:09]   [Callback] iter 0005: saved model/grad/hess/dir/tikh images  (L2=3.9116e+04)
+[2026-03-07 14:30:09] 
+Final model  -> results\test_nonorm2\models\final_result.npz
+[2026-03-07 14:30:10] Misfit curve -> results\test_nonorm2\misfit\#Output_L2_ratio_curve.png
+[2026-03-07 14:30:10] Log          -> results\test_nonorm2\logs\run_log.txt
+[2026-03-07 14:30:10] 
+Final L2 : 3.911574e+04
+[2026-03-07 14:30:10] L2 ratio : 8.162e-01

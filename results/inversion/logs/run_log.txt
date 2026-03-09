@@ -1,0 +1,44 @@
+rfdfwi FWI run log
+==================================================
+Progress log : D:\rfdfwi\results\inversion\logs\progress_20260306_195219.txt
+Date/time    : 2026-03-06 19:52:19
+Config       : D:\rfdfwi\input\input_inversion.yaml
+Grid style   : stag2
+Workers      : 15
+True model   : inputmodel/model_epsr.npy  (shape (200, 200))
+Init model   : Gaussian-smoothed true model (sigma=6.0 px)
+Frequencies  : GPRFM 10 discrete (50-200 MHz)
+Sources      : 82  Receivers: 162
+Iterations   : 26
+L2 initial   : 4.792257e+04
+L2 final     : 3.148704e+04
+L2 ratio     : 6.570e-01
+Elapsed      : 9887.7 s
+
+Per-iteration L2:
+  iter    1: 4.792257e+04  step=1.953e-03
+  iter    2: 4.271710e+04  step=9.766e-04
+  iter    3: 4.061262e+04  step=9.766e-04
+  iter    4: 3.858408e+04  step=9.766e-04
+  iter    5: 3.709935e+04  step=9.766e-04
+  iter    6: 3.609796e+04  step=9.766e-04
+  iter    7: 3.510823e+04  step=9.766e-04
+  iter    8: 3.432424e+04  step=4.883e-04
+  iter    9: 3.331197e+04  step=9.766e-04
+  iter   10: 3.300271e+04  step=4.883e-04
+  iter   11: 3.203025e+04  step=4.883e-04
+  iter   12: 3.148704e+04  step=0.000e+00
+  iter   13: 3.148704e+04  step=0.000e+00
+  iter   14: 3.148704e+04  step=0.000e+00
+  iter   15: 3.148704e+04  step=0.000e+00
+  iter   16: 3.148704e+04  step=0.000e+00
+  iter   17: 3.148704e+04  step=0.000e+00
+  iter   18: 3.148704e+04  step=0.000e+00
+  iter   19: 3.148704e+04  step=0.000e+00
+  iter   20: 3.148704e+04  step=0.000e+00
+  iter   21: 3.148704e+04  step=0.000e+00
+  iter   22: 3.148704e+04  step=0.000e+00
+  iter   23: 3.148704e+04  step=0.000e+00
+  iter   24: 3.148704e+04  step=0.000e+00
+  iter   25: 3.148704e+04  step=0.000e+00
+  iter   26: 3.148704e+04

@@ -1,0 +1,194 @@
+[2026-03-06 16:57:30] Progress log : D:\rfdfwi\results\inversion\logs\progress_20260306_165730.txt
+[2026-03-06 16:57:30] Loaded true model from D:\rfdfwi\inputmodel\model_epsr.npy
+[2026-03-06 16:57:31] True model : inputmodel/model_epsr.npy  (shape (200, 200))
+[2026-03-06 16:57:31]   -> D:\rfdfwi\results\inversion\models\true_epsr.png
+[2026-03-06 16:57:31] 
+Generating observed data (82 sources × 10 freqs × 162 receivers) ...
+[2026-03-06 16:57:48]   d_obs shape: (82, 10, 162)  |max|=2.850e+03
+[2026-03-06 16:57:48]   Saved -> D:\rfdfwi\results\inversion\obs\d_obs.npz
+[2026-03-06 16:57:49] 
+Initial model: Gaussian-smoothed true model (sigma=6.0 px)
+[2026-03-06 16:57:49] 
+Config       : D:\rfdfwi\input\input_inversion.yaml
+[2026-03-06 16:57:49] Grid style   : stag2
+[2026-03-06 16:57:49] Domain       : 200×200  dh=0.05 m
+[2026-03-06 16:57:49] PML          : npml=10  a0_cfs=9.00e+08
+[2026-03-06 16:57:49] Acquisition  : 82 sources, 162 receivers
+[2026-03-06 16:57:49] Frequencies  : GPRFM 10 discrete (50–200 MHz)
+[2026-03-06 16:57:49] Workers      : 15
+[2026-03-06 16:57:49] Max iter     : 50
+[2026-03-06 16:57:49] 
+Starting FWI ...
+[2026-03-06 16:57:49]   Grid style : stag2
+[2026-03-06 16:57:49]   Sources    : 82  |  Receivers: 162
+[2026-03-06 16:57:49]   Frequencies: 10  (50–200 MHz)
+[2026-03-06 16:57:49]   Max iter   : 50  |  conv_ratio=1.0e-02
+[2026-03-06 16:57:49]   LAMBDA_1   : 0.0002  |  LAMBDA_2: 0.0
+[2026-03-06 16:57:49]   sigma0     : 5.600e-03  |  beta_sigma=1.0, beta_epsr=1.0
+[2026-03-06 16:57:49]   STEPMAX    : 12  |  SCALEFAC=2.0  |  C1=1.0e-04
+[2026-03-06 16:57:49]   Patience   : 8  (early stop if no decrease for 8 iters)
+[2026-03-06 16:57:49]   Warmup     : 5  (first 5 iters excluded from early-stop check)
+[2026-03-06 16:57:49] 
+============================================================
+[2026-03-06 16:57:49] [iter 1/50] Computing adjoint-state gradient  (82 src × 10 freq) ...
+[2026-03-06 16:57:53]     [freq  1/10] 50.0 MHz — 82 src done  grad/src: ε=3.095e+17  σ=1.004e+09
+[2026-03-06 16:57:56]     [freq  2/10] 60.0 MHz — 82 src done  grad/src: ε=2.464e+17  σ=6.592e+08
+[2026-03-06 16:58:00]     [freq  3/10] 70.0 MHz — 82 src done  grad/src: ε=2.607e+17  σ=5.934e+08
+[2026-03-06 16:58:04]     [freq  4/10] 80.0 MHz — 82 src done  grad/src: ε=2.848e+17  σ=5.810e+08
+[2026-03-06 16:58:08]     [freq  5/10] 90.0 MHz — 82 src done  grad/src: ε=3.246e+17  σ=6.057e+08
+[2026-03-06 16:58:12]     [freq  6/10] 100.0 MHz — 82 src done  grad/src: ε=3.614e+17  σ=6.293e+08
+[2026-03-06 16:58:16]     [freq  7/10] 125.0 MHz — 82 src done  grad/src: ε=5.432e+17  σ=7.887e+08
+[2026-03-06 16:58:19]     [freq  8/10] 150.0 MHz — 82 src done  grad/src: ε=8.087e+17  σ=1.001e+09
+[2026-03-06 16:58:23]     [freq  9/10] 175.0 MHz — 82 src done  grad/src: ε=1.072e+18  σ=1.199e+09
+[2026-03-06 16:58:27]     [freq 10/10] 200.0 MHz — 82 src done  grad/src: ε=1.640e+18  σ=1.561e+09
+[2026-03-06 16:58:27]   gradient done — L2=4.792257e+04
+[2026-03-06 16:58:27]   >> L2=4.792257e+04  ratio=1.000e+00
+  Hessian precond [interior 180×180]:  H_max_e=7.493e+43  H_max_s=6.341e+25  eps_H=0.01  d_max_e=7.109e+23  d_max_s=7.130e+14
+  |d_epsr|_int_max=1.000e+00  |d_sigma|_int_max=1.000e+00
+[2026-03-06 16:58:27]   step_e=5.000e-01 (max Δεᵣ per iter)  step_s=5.000e-04 (max Δσ per iter)
+[2026-03-06 16:58:46]     [ls 1/12] step_e=5.000e-01 step_s=5.000e-04  L2_try=1.332515e+05  Δ=-8.533e+04  reject
+[2026-03-06 16:59:05]     [ls 2/12] step_e=2.500e-01 step_s=2.500e-04  L2_try=7.723281e+04  Δ=-2.931e+04  reject
+[2026-03-06 16:59:23]     [ls 3/12] step_e=1.250e-01 step_s=1.250e-04  L2_try=5.910658e+04  Δ=-1.118e+04  reject
+[2026-03-06 16:59:42]     [ls 4/12] step_e=6.250e-02 step_s=6.250e-05  L2_try=5.262945e+04  Δ=-4.707e+03  reject
+[2026-03-06 17:00:01]     [ls 5/12] step_e=3.125e-02 step_s=3.125e-05  L2_try=5.005254e+04  Δ=-2.130e+03  reject
+[2026-03-06 17:00:20]     [ls 6/12] step_e=1.562e-02 step_s=1.563e-05  L2_try=4.893142e+04  Δ=-1.009e+03  reject
+[2026-03-06 17:00:38]     [ls 7/12] step_e=7.812e-03 step_s=7.813e-06  L2_try=4.841292e+04  Δ=-4.904e+02  reject
+[2026-03-06 17:00:57]     [ls 8/12] step_e=3.906e-03 step_s=3.906e-06  L2_try=4.816423e+04  Δ=-2.417e+02  reject
+[2026-03-06 17:01:15]     [ls 9/12] step_e=1.953e-03 step_s=1.953e-06  L2_try=4.804252e+04  Δ=-1.199e+02  reject
+[2026-03-06 17:01:34]     [ls 10/12] step_e=9.766e-04 step_s=9.766e-07  L2_try=4.798232e+04  Δ=-5.975e+01  reject
+[2026-03-06 17:01:53]     [ls 11/12] step_e=4.883e-04 step_s=4.883e-07  L2_try=4.795239e+04  Δ=-2.982e+01  reject
+[2026-03-06 17:02:12]     [ls 12/12] step_e=2.441e-04 step_s=2.441e-07  L2_try=4.793747e+04  Δ=-1.490e+01  reject
+[2026-03-06 17:02:12]   [WARNING] No decrease after 12 trials — accepting last step_e=1.221e-04  step_s=1.221e-07
+[2026-03-06 17:02:12]   update: |Δε|_max=1.221e-04  |Δσ|_max=1.221e-07  εᵣ=[1.42,7.44]  σ=[5.09e-04,9.01e-03]
+[2026-03-06 17:02:12]   Callback: saving iter 1 images ...
+[2026-03-06 17:02:14]   [Callback] iter 0001: saved model/grad/hess/dir/tikh images  (L2=4.7923e+04)
+[2026-03-06 17:02:14] 
+============================================================
+[2026-03-06 17:02:14] [iter 2/50] Computing adjoint-state gradient  (82 src × 10 freq) ...
+[2026-03-06 17:02:18]     [freq  1/10] 50.0 MHz — 82 src done  grad/src: ε=3.095e+17  σ=1.004e+09
+[2026-03-06 17:02:21]     [freq  2/10] 60.0 MHz — 82 src done  grad/src: ε=2.464e+17  σ=6.592e+08
+[2026-03-06 17:02:25]     [freq  3/10] 70.0 MHz — 82 src done  grad/src: ε=2.607e+17  σ=5.934e+08
+[2026-03-06 17:02:29]     [freq  4/10] 80.0 MHz — 82 src done  grad/src: ε=2.848e+17  σ=5.809e+08
+[2026-03-06 17:02:33]     [freq  5/10] 90.0 MHz — 82 src done  grad/src: ε=3.246e+17  σ=6.057e+08
+[2026-03-06 17:02:37]     [freq  6/10] 100.0 MHz — 82 src done  grad/src: ε=3.615e+17  σ=6.293e+08
+[2026-03-06 17:02:41]     [freq  7/10] 125.0 MHz — 82 src done  grad/src: ε=5.433e+17  σ=7.888e+08
+[2026-03-06 17:02:45]     [freq  8/10] 150.0 MHz — 82 src done  grad/src: ε=8.091e+17  σ=1.001e+09
+[2026-03-06 17:02:48]     [freq  9/10] 175.0 MHz — 82 src done  grad/src: ε=1.073e+18  σ=1.200e+09
+[2026-03-06 17:02:52]     [freq 10/10] 200.0 MHz — 82 src done  grad/src: ε=1.643e+18  σ=1.563e+09
+[2026-03-06 17:02:52]   gradient done — L2=4.793002e+04
+[2026-03-06 17:02:52]   >> L2=4.793002e+04  ratio=1.000e+00
+  Hessian precond [interior 180×180]:  H_max_e=7.493e+43  H_max_s=6.341e+25  eps_H=0.01  d_max_e=7.109e+23  d_max_s=7.130e+14
+  |d_epsr|_int_max=1.000e+00  |d_sigma|_int_max=1.000e+00
+[2026-03-06 17:02:52]   step_e=5.000e-01 (max Δεᵣ per iter)  step_s=5.000e-04 (max Δσ per iter)
+[2026-03-06 17:03:11]     [ls 1/12] step_e=5.000e-01 step_s=5.000e-04  L2_try=1.336548e+05  Δ=-8.572e+04  reject
+[2026-03-06 17:03:30]     [ls 2/12] step_e=2.500e-01 step_s=2.500e-04  L2_try=7.735341e+04  Δ=-2.942e+04  reject
+[2026-03-06 17:03:49]     [ls 3/12] step_e=1.250e-01 step_s=1.250e-04  L2_try=5.914928e+04  Δ=-1.122e+04  reject
+[2026-03-06 17:04:08]     [ls 4/12] step_e=6.250e-02 step_s=6.250e-05  L2_try=5.264917e+04  Δ=-4.719e+03  reject
+[2026-03-06 17:04:27]     [ls 5/12] step_e=3.125e-02 step_s=3.125e-05  L2_try=5.006478e+04  Δ=-2.135e+03  reject
+[2026-03-06 17:04:45]     [ls 6/12] step_e=1.562e-02 step_s=1.563e-05  L2_try=4.894092e+04  Δ=-1.011e+03  reject
+[2026-03-06 17:05:04]     [ls 7/12] step_e=7.812e-03 step_s=7.813e-06  L2_try=4.842132e+04  Δ=-4.913e+02  reject
+[2026-03-06 17:05:22]     [ls 8/12] step_e=3.906e-03 step_s=3.906e-06  L2_try=4.817212e+04  Δ=-2.421e+02  reject
+[2026-03-06 17:05:41]     [ls 9/12] step_e=1.953e-03 step_s=1.953e-06  L2_try=4.805018e+04  Δ=-1.202e+02  reject
+[2026-03-06 17:05:59]     [ls 10/12] step_e=9.766e-04 step_s=9.766e-07  L2_try=4.798988e+04  Δ=-5.986e+01  reject
+[2026-03-06 17:06:18]     [ls 11/12] step_e=4.883e-04 step_s=4.883e-07  L2_try=4.795989e+04  Δ=-2.988e+01  reject
+[2026-03-06 17:06:36]     [ls 12/12] step_e=2.441e-04 step_s=2.441e-07  L2_try=4.794494e+04  Δ=-1.492e+01  reject
+[2026-03-06 17:06:36]   [WARNING] No decrease after 12 trials — accepting last step_e=1.221e-04  step_s=1.221e-07
+[2026-03-06 17:06:36]   update: |Δε|_max=1.221e-04  |Δσ|_max=1.221e-07  εᵣ=[1.42,7.44]  σ=[5.09e-04,9.01e-03]
+[2026-03-06 17:06:36]   Callback: saving iter 2 images ...
+[2026-03-06 17:06:38]   [Callback] iter 0002: saved model/grad/hess/dir/tikh images  (L2=4.7930e+04)
+[2026-03-06 17:06:38] 
+============================================================
+[2026-03-06 17:06:38] [iter 3/50] Computing adjoint-state gradient  (82 src × 10 freq) ...
+[2026-03-06 17:06:42]     [freq  1/10] 50.0 MHz — 82 src done  grad/src: ε=3.095e+17  σ=1.004e+09
+[2026-03-06 17:06:46]     [freq  2/10] 60.0 MHz — 82 src done  grad/src: ε=2.464e+17  σ=6.592e+08
+[2026-03-06 17:06:50]     [freq  3/10] 70.0 MHz — 82 src done  grad/src: ε=2.607e+17  σ=5.934e+08
+[2026-03-06 17:06:53]     [freq  4/10] 80.0 MHz — 82 src done  grad/src: ε=2.848e+17  σ=5.809e+08
+[2026-03-06 17:06:57]     [freq  5/10] 90.0 MHz — 82 src done  grad/src: ε=3.247e+17  σ=6.057e+08
+[2026-03-06 17:07:01]     [freq  6/10] 100.0 MHz — 82 src done  grad/src: ε=3.615e+17  σ=6.293e+08
+[2026-03-06 17:07:05]     [freq  7/10] 125.0 MHz — 82 src done  grad/src: ε=5.434e+17  σ=7.888e+08
+[2026-03-06 17:07:09]     [freq  8/10] 150.0 MHz — 82 src done  grad/src: ε=8.095e+17  σ=1.002e+09
+[2026-03-06 17:07:13]     [freq  9/10] 175.0 MHz — 82 src done  grad/src: ε=1.074e+18  σ=1.201e+09
+[2026-03-06 17:07:16]     [freq 10/10] 200.0 MHz — 82 src done  grad/src: ε=1.646e+18  σ=1.565e+09
+[2026-03-06 17:07:16]   gradient done — L2=4.793747e+04
+[2026-03-06 17:07:16]   >> L2=4.793747e+04  ratio=1.000e+00
+  Hessian precond [interior 180×180]:  H_max_e=7.493e+43  H_max_s=6.341e+25  eps_H=0.01  d_max_e=7.109e+23  d_max_s=7.130e+14
+  |d_epsr|_int_max=1.000e+00  |d_sigma|_int_max=1.000e+00
+[2026-03-06 17:07:16]   step_e=5.000e-01 (max Δεᵣ per iter)  step_s=5.000e-04 (max Δσ per iter)
+[2026-03-06 17:07:35]     [ls 1/12] step_e=5.000e-01 step_s=5.000e-04  L2_try=1.340616e+05  Δ=-8.612e+04  reject
+[2026-03-06 17:07:54]     [ls 2/12] step_e=2.500e-01 step_s=2.500e-04  L2_try=7.747501e+04  Δ=-2.954e+04  reject
+[2026-03-06 17:08:12]     [ls 3/12] step_e=1.250e-01 step_s=1.250e-04  L2_try=5.919227e+04  Δ=-1.125e+04  reject
+[2026-03-06 17:08:31]     [ls 4/12] step_e=6.250e-02 step_s=6.250e-05  L2_try=5.266899e+04  Δ=-4.732e+03  reject
+[2026-03-06 17:08:50]     [ls 5/12] step_e=3.125e-02 step_s=3.125e-05  L2_try=5.007707e+04  Δ=-2.140e+03  reject
+[2026-03-06 17:09:08]     [ls 6/12] step_e=1.562e-02 step_s=1.563e-05  L2_try=4.895046e+04  Δ=-1.013e+03  reject
+[2026-03-06 17:09:27]     [ls 7/12] step_e=7.812e-03 step_s=7.813e-06  L2_try=4.842973e+04  Δ=-4.923e+02  reject
+[2026-03-06 17:09:45]     [ls 8/12] step_e=3.906e-03 step_s=3.906e-06  L2_try=4.818004e+04  Δ=-2.426e+02  reject
+[2026-03-06 17:10:04]     [ls 9/12] step_e=1.953e-03 step_s=1.953e-06  L2_try=4.805786e+04  Δ=-1.204e+02  reject
+[2026-03-06 17:10:23]     [ls 10/12] step_e=9.766e-04 step_s=9.766e-07  L2_try=4.799745e+04  Δ=-5.997e+01  reject
+[2026-03-06 17:10:41]     [ls 11/12] step_e=4.883e-04 step_s=4.883e-07  L2_try=4.796740e+04  Δ=-2.993e+01  reject
+[2026-03-06 17:11:00]     [ls 12/12] step_e=2.441e-04 step_s=2.441e-07  L2_try=4.795242e+04  Δ=-1.495e+01  reject
+[2026-03-06 17:11:00]   [WARNING] No decrease after 12 trials — accepting last step_e=1.221e-04  step_s=1.221e-07
+[2026-03-06 17:11:00]   update: |Δε|_max=1.221e-04  |Δσ|_max=1.221e-07  εᵣ=[1.42,7.44]  σ=[5.09e-04,9.01e-03]
+[2026-03-06 17:11:00]   Callback: saving iter 3 images ...
+[2026-03-06 17:11:02]   [Callback] iter 0003: saved model/grad/hess/dir/tikh images  (L2=4.7937e+04)
+[2026-03-06 17:11:02] 
+============================================================
+[2026-03-06 17:11:02] [iter 4/50] Computing adjoint-state gradient  (82 src × 10 freq) ...
+[2026-03-06 17:11:06]     [freq  1/10] 50.0 MHz — 82 src done  grad/src: ε=3.095e+17  σ=1.004e+09
+[2026-03-06 17:11:10]     [freq  2/10] 60.0 MHz — 82 src done  grad/src: ε=2.464e+17  σ=6.592e+08
+[2026-03-06 17:11:14]     [freq  3/10] 70.0 MHz — 82 src done  grad/src: ε=2.607e+17  σ=5.934e+08
+[2026-03-06 17:11:18]     [freq  4/10] 80.0 MHz — 82 src done  grad/src: ε=2.848e+17  σ=5.809e+08
+[2026-03-06 17:11:22]     [freq  5/10] 90.0 MHz — 82 src done  grad/src: ε=3.247e+17  σ=6.058e+08
+[2026-03-06 17:11:26]     [freq  6/10] 100.0 MHz — 82 src done  grad/src: ε=3.616e+17  σ=6.294e+08
+[2026-03-06 17:11:30]     [freq  7/10] 125.0 MHz — 82 src done  grad/src: ε=5.435e+17  σ=7.889e+08
+[2026-03-06 17:11:33]     [freq  8/10] 150.0 MHz — 82 src done  grad/src: ε=8.099e+17  σ=1.002e+09
+[2026-03-06 17:11:37]     [freq  9/10] 175.0 MHz — 82 src done  grad/src: ε=1.075e+18  σ=1.202e+09
+[2026-03-06 17:11:42]     [freq 10/10] 200.0 MHz — 82 src done  grad/src: ε=1.649e+18  σ=1.566e+09
+[2026-03-06 17:11:42]   gradient done — L2=4.794495e+04
+[2026-03-06 17:11:42]   >> L2=4.794495e+04  ratio=1.000e+00
+  Hessian precond [interior 180×180]:  H_max_e=7.493e+43  H_max_s=6.341e+25  eps_H=0.01  d_max_e=7.110e+23  d_max_s=7.130e+14
+  |d_epsr|_int_max=1.000e+00  |d_sigma|_int_max=1.000e+00
+[2026-03-06 17:11:42]   step_e=5.000e-01 (max Δεᵣ per iter)  step_s=5.000e-04 (max Δσ per iter)
+[2026-03-06 17:12:01]     [ls 1/12] step_e=5.000e-01 step_s=5.000e-04  L2_try=1.344722e+05  Δ=-8.653e+04  reject
+[2026-03-06 17:12:20]     [ls 2/12] step_e=2.500e-01 step_s=2.500e-04  L2_try=7.759763e+04  Δ=-2.965e+04  reject
+[2026-03-06 17:12:39]     [ls 3/12] step_e=1.250e-01 step_s=1.250e-04  L2_try=5.923557e+04  Δ=-1.129e+04  reject
+[2026-03-06 17:12:58]     [ls 4/12] step_e=6.250e-02 step_s=6.250e-05  L2_try=5.268893e+04  Δ=-4.744e+03  reject
+[2026-03-06 17:13:17]     [ls 5/12] step_e=3.125e-02 step_s=3.125e-05  L2_try=5.008941e+04  Δ=-2.144e+03  reject
+[2026-03-06 17:13:36]     [ls 6/12] step_e=1.562e-02 step_s=1.563e-05  L2_try=4.896002e+04  Δ=-1.015e+03  reject
+[2026-03-06 17:13:56]     [ls 7/12] step_e=7.812e-03 step_s=7.813e-06  L2_try=4.843816e+04  Δ=-4.932e+02  reject
+[2026-03-06 17:14:15]     [ls 8/12] step_e=3.906e-03 step_s=3.906e-06  L2_try=4.818797e+04  Δ=-2.430e+02  reject
+[2026-03-06 17:14:34]     [ls 9/12] step_e=1.953e-03 step_s=1.953e-06  L2_try=4.806556e+04  Δ=-1.206e+02  reject
+[2026-03-06 17:14:54]     [ls 10/12] step_e=9.766e-04 step_s=9.766e-07  L2_try=4.800503e+04  Δ=-6.008e+01  reject
+[2026-03-06 17:15:13]     [ls 11/12] step_e=4.883e-04 step_s=4.883e-07  L2_try=4.797493e+04  Δ=-2.999e+01  reject
+[2026-03-06 17:15:32]     [ls 12/12] step_e=2.441e-04 step_s=2.441e-07  L2_try=4.795992e+04  Δ=-1.498e+01  reject
+[2026-03-06 17:15:32]   [WARNING] No decrease after 12 trials — accepting last step_e=1.221e-04  step_s=1.221e-07
+[2026-03-06 17:15:32]   update: |Δε|_max=1.221e-04  |Δσ|_max=1.221e-07  εᵣ=[1.42,7.44]  σ=[5.09e-04,9.01e-03]
+[2026-03-06 17:15:32]   Callback: saving iter 4 images ...
+[2026-03-06 17:15:34]   [Callback] iter 0004: saved model/grad/hess/dir/tikh images  (L2=4.7945e+04)
+[2026-03-06 17:15:34] 
+============================================================
+[2026-03-06 17:15:34] [iter 5/50] Computing adjoint-state gradient  (82 src × 10 freq) ...
+[2026-03-06 17:15:38]     [freq  1/10] 50.0 MHz — 82 src done  grad/src: ε=3.095e+17  σ=1.004e+09
+[2026-03-06 17:15:42]     [freq  2/10] 60.0 MHz — 82 src done  grad/src: ε=2.463e+17  σ=6.592e+08
+[2026-03-06 17:15:46]     [freq  3/10] 70.0 MHz — 82 src done  grad/src: ε=2.607e+17  σ=5.934e+08
+[2026-03-06 17:15:50]     [freq  4/10] 80.0 MHz — 82 src done  grad/src: ε=2.848e+17  σ=5.809e+08
+[2026-03-06 17:15:54]     [freq  5/10] 90.0 MHz — 82 src done  grad/src: ε=3.247e+17  σ=6.058e+08
+[2026-03-06 17:15:58]     [freq  6/10] 100.0 MHz — 82 src done  grad/src: ε=3.616e+17  σ=6.294e+08
+[2026-03-06 17:16:02]     [freq  7/10] 125.0 MHz — 82 src done  grad/src: ε=5.435e+17  σ=7.889e+08
+[2026-03-06 17:16:06]     [freq  8/10] 150.0 MHz — 82 src done  grad/src: ε=8.104e+17  σ=1.002e+09
+[2026-03-06 17:16:10]     [freq  9/10] 175.0 MHz — 82 src done  grad/src: ε=1.076e+18  σ=1.203e+09
+[2026-03-06 17:16:14]     [freq 10/10] 200.0 MHz — 82 src done  grad/src: ε=1.652e+18  σ=1.568e+09
+[2026-03-06 17:16:14]   gradient done — L2=4.795243e+04
+[2026-03-06 17:16:14]   >> L2=4.795243e+04  ratio=1.001e+00
+  Hessian precond [interior 180×180]:  H_max_e=7.493e+43  H_max_s=6.341e+25  eps_H=0.01  d_max_e=7.110e+23  d_max_s=7.130e+14
+  |d_epsr|_int_max=1.000e+00  |d_sigma|_int_max=1.000e+00
+[2026-03-06 17:16:14]   step_e=5.000e-01 (max Δεᵣ per iter)  step_s=5.000e-04 (max Δσ per iter)
+[2026-03-06 17:16:33]     [ls 1/12] step_e=5.000e-01 step_s=5.000e-04  L2_try=1.348865e+05  Δ=-8.693e+04  reject
+[2026-03-06 17:16:52]     [ls 2/12] step_e=2.500e-01 step_s=2.500e-04  L2_try=7.772127e+04  Δ=-2.977e+04  reject
+[2026-03-06 17:17:11]     [ls 3/12] step_e=1.250e-01 step_s=1.250e-04  L2_try=5.927918e+04  Δ=-1.133e+04  reject
+[2026-03-06 17:17:30]     [ls 4/12] step_e=6.250e-02 step_s=6.250e-05  L2_try=5.270897e+04  Δ=-4.757e+03  reject
+[2026-03-06 17:17:50]     [ls 5/12] step_e=3.125e-02 step_s=3.125e-05  L2_try=5.010180e+04  Δ=-2.149e+03  reject
+[2026-03-06 17:18:10]     [ls 6/12] step_e=1.562e-02 step_s=1.563e-05  L2_try=4.896961e+04  Δ=-1.017e+03  reject
+[2026-03-06 17:18:29]     [ls 7/12] step_e=7.812e-03 step_s=7.813e-06  L2_try=4.844661e+04  Δ=-4.942e+02  reject
+[2026-03-06 17:18:49]     [ls 8/12] step_e=3.906e-03 step_s=3.906e-06  L2_try=4.819592e+04  Δ=-2.435e+02  reject
+[2026-03-06 17:19:08]     [ls 9/12] step_e=1.953e-03 step_s=1.953e-06  L2_try=4.807327e+04  Δ=-1.208e+02  reject
+[2026-03-06 17:19:28]     [ls 10/12] step_e=9.766e-04 step_s=9.766e-07  L2_try=4.801263e+04  Δ=-6.019e+01  reject

@@ -1,0 +1,140 @@
+[2026-03-06 18:27:32] Progress log : results\test_lbfgs\logs\progress_20260306_182732.txt
+[2026-03-06 18:27:32] Loaded true model from D:\rfdfwi\inputmodel\model_epsr.npy
+[2026-03-06 18:27:33] True model : inputmodel/model_epsr.npy  (shape (200, 200))
+[2026-03-06 18:27:33]   -> results\test_lbfgs\models\true_model_epsr.png
+[2026-03-06 18:27:33] 
+Generating observed data (82 sources x 10 freqs x 162 receivers) ...
+[2026-03-06 18:27:44]   d_obs shape: (82, 10, 162)  |max|=2.850e+03
+[2026-03-06 18:27:44]   Saved -> results\test_lbfgs\obs\d_obs.npz
+[2026-03-06 18:27:44] 
+Initial model: Gaussian-smoothed true model (sigma=6.0 px)
+[2026-03-06 18:27:44] 
+Config       : D:\rfdfwi\input\input_inversion.yaml
+[2026-03-06 18:27:44] Grid style   : stag2
+[2026-03-06 18:27:44] Domain       : 200x200  dh=0.05 m
+[2026-03-06 18:27:44] PML          : npml=10  a0_cfs=9.00e+08
+[2026-03-06 18:27:44] Acquisition  : 82 sources, 162 receivers
+[2026-03-06 18:27:44] Frequencies  : GPRFM 10 discrete (50-200 MHz)
+[2026-03-06 18:27:44] Workers      : 15
+[2026-03-06 18:27:44] Max iter     : 3
+[2026-03-06 18:27:44] 
+Starting FWI ...
+[2026-03-06 18:27:44]   Grid style : stag2
+[2026-03-06 18:27:44]   Sources    : 82  |  Receivers: 162
+[2026-03-06 18:27:44]   Frequencies: 10  (50-200 MHz)
+[2026-03-06 18:27:44]   Max iter   : 3  |  conv_ratio=5.0e-05
+[2026-03-06 18:27:44]   LAMBDA_1   : 0.0002  |  LAMBDA_2: 0.0
+[2026-03-06 18:27:44]   sigma0     : 5.600e-03  |  beta_sigma=1.0, beta_epsr=1.0
+[2026-03-06 18:27:44]   STEPMAX    : 12  |  SCALEFAC=2.0  |  C1=1.0e-04
+[2026-03-06 18:27:44]   C2_wolfe   : 0.9  |  nlbfgs=5  |  use_lbfgs=True
+[2026-03-06 18:27:44]   Patience   : 15  (early stop if no decrease for 15 iters)
+[2026-03-06 18:27:44]   Warmup     : 10  (first 10 iters excluded from early-stop check)
+[2026-03-06 18:27:44] 
+============================================================
+[2026-03-06 18:27:44] [iter 1/3] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-06 18:27:47]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.095e+17  s=1.004e+09
+[2026-03-06 18:27:49]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.464e+17  s=6.592e+08
+[2026-03-06 18:27:51]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=2.607e+17  s=5.934e+08
+[2026-03-06 18:27:54]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=2.848e+17  s=5.810e+08
+[2026-03-06 18:27:56]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=3.246e+17  s=6.057e+08
+[2026-03-06 18:27:58]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=3.614e+17  s=6.293e+08
+[2026-03-06 18:28:01]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=5.432e+17  s=7.887e+08
+[2026-03-06 18:28:03]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=8.087e+17  s=1.001e+09
+[2026-03-06 18:28:05]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=1.072e+18  s=1.199e+09
+[2026-03-06 18:28:07]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=1.640e+18  s=1.561e+09
+[2026-03-06 18:28:07]   gradient done -- L2=4.792257e+04
+[2026-03-06 18:28:07]   >> L2=4.792257e+04  ratio=1.000e+00
+[2026-03-06 18:28:07]   [Steepest descent] H_max_e=7.493e+43  H_max_s=6.341e+25
+[2026-03-06 18:28:07]   step_e=1.000e+00  step_s=1.000e-03
+[2026-03-06 18:28:30]     [wolfe 1/12] alpha=1.0000e+00  L2=3.184878e+05  gs0=-4.051e+13  gts=-2.559e+14  [C1 fail]
+[2026-03-06 18:28:53]     [wolfe 2/12] alpha=5.0000e-01  L2=1.332515e+05  gs0=-4.051e+13  gts=-1.539e+14  [C1 fail]
+[2026-03-06 18:29:16]     [wolfe 3/12] alpha=2.5000e-01  L2=7.723281e+04  gs0=-4.051e+13  gts=-9.872e+13  [C1 fail]
+[2026-03-06 18:29:39]     [wolfe 4/12] alpha=1.2500e-01  L2=5.910658e+04  gs0=-4.051e+13  gts=-6.997e+13  [C1 fail]
+[2026-03-06 18:30:02]     [wolfe 5/12] alpha=6.2500e-02  L2=5.262945e+04  gs0=-4.051e+13  gts=-5.532e+13  [C1 fail]
+[2026-03-06 18:30:24]     [wolfe 6/12] alpha=3.1250e-02  L2=5.005254e+04  gs0=-4.051e+13  gts=-4.794e+13  [C1 fail]
+[2026-03-06 18:30:47]     [wolfe 7/12] alpha=1.5625e-02  L2=4.893142e+04  gs0=-4.051e+13  gts=-4.423e+13  [C1 fail]
+[2026-03-06 18:31:10]     [wolfe 8/12] alpha=7.8125e-03  L2=4.841292e+04  gs0=-4.051e+13  gts=-4.237e+13  [C1 fail]
+[2026-03-06 18:31:33]     [wolfe 9/12] alpha=3.9062e-03  L2=4.816423e+04  gs0=-4.051e+13  gts=-4.144e+13  [C1 fail]
+[2026-03-06 18:31:55]     [wolfe 10/12] alpha=1.9531e-03  L2=4.804252e+04  gs0=-4.051e+13  gts=-4.097e+13  [C1 fail]
+[2026-03-06 18:32:17]     [wolfe 11/12] alpha=9.7656e-04  L2=4.798232e+04  gs0=-4.051e+13  gts=-4.074e+13  [C1 fail]
+[2026-03-06 18:32:40]     [wolfe 12/12] alpha=4.8828e-04  L2=4.795239e+04  gs0=-4.051e+13  gts=-4.062e+13  [C1 fail]
+[2026-03-06 18:32:40]     [wolfe] max trials -- using best alpha=0.0000e+00  L2=4.792257e+04
+[2026-03-06 18:32:40]   [L-BFGS] skip curvature update (ys=0.000e+00 too small)
+[2026-03-06 18:32:40]   update: |De|_max=0.000e+00  |Ds|_max=0.000e+00  er=[1.42,7.44]  s=[5.09e-04,9.01e-03]  L2_new=4.792257e+04
+[2026-03-06 18:32:40]   Callback: saving iter 1 images ...
+[2026-03-06 18:32:42]   [Callback] iter 0001: saved model/grad/hess/dir/tikh images  (L2=4.7923e+04)
+[2026-03-06 18:32:42] 
+============================================================
+[2026-03-06 18:32:42] [iter 2/3] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-06 18:32:44]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.095e+17  s=1.004e+09
+[2026-03-06 18:32:46]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.464e+17  s=6.592e+08
+[2026-03-06 18:32:49]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=2.607e+17  s=5.934e+08
+[2026-03-06 18:32:51]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=2.848e+17  s=5.810e+08
+[2026-03-06 18:32:53]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=3.246e+17  s=6.057e+08
+[2026-03-06 18:32:56]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=3.614e+17  s=6.293e+08
+[2026-03-06 18:32:58]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=5.432e+17  s=7.887e+08
+[2026-03-06 18:33:00]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=8.087e+17  s=1.001e+09
+[2026-03-06 18:33:02]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=1.072e+18  s=1.199e+09
+[2026-03-06 18:33:05]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=1.640e+18  s=1.561e+09
+[2026-03-06 18:33:05]   gradient done -- L2=4.792257e+04
+[2026-03-06 18:33:05]   >> L2=4.792257e+04  ratio=1.000e+00
+[2026-03-06 18:33:05]   [Steepest descent] H_max_e=7.493e+43  H_max_s=6.341e+25
+[2026-03-06 18:33:05]   step_e=1.000e+00  step_s=1.000e-03
+[2026-03-06 18:33:28]     [wolfe 1/12] alpha=1.0000e+00  L2=3.184878e+05  gs0=-4.051e+13  gts=-2.559e+14  [C1 fail]
+[2026-03-06 18:33:51]     [wolfe 2/12] alpha=5.0000e-01  L2=1.332515e+05  gs0=-4.051e+13  gts=-1.539e+14  [C1 fail]
+[2026-03-06 18:34:14]     [wolfe 3/12] alpha=2.5000e-01  L2=7.723281e+04  gs0=-4.051e+13  gts=-9.872e+13  [C1 fail]
+[2026-03-06 18:34:37]     [wolfe 4/12] alpha=1.2500e-01  L2=5.910658e+04  gs0=-4.051e+13  gts=-6.997e+13  [C1 fail]
+[2026-03-06 18:35:00]     [wolfe 5/12] alpha=6.2500e-02  L2=5.262945e+04  gs0=-4.051e+13  gts=-5.532e+13  [C1 fail]
+[2026-03-06 18:35:22]     [wolfe 6/12] alpha=3.1250e-02  L2=5.005254e+04  gs0=-4.051e+13  gts=-4.794e+13  [C1 fail]
+[2026-03-06 18:35:45]     [wolfe 7/12] alpha=1.5625e-02  L2=4.893142e+04  gs0=-4.051e+13  gts=-4.423e+13  [C1 fail]
+[2026-03-06 18:36:08]     [wolfe 8/12] alpha=7.8125e-03  L2=4.841292e+04  gs0=-4.051e+13  gts=-4.237e+13  [C1 fail]
+[2026-03-06 18:36:31]     [wolfe 9/12] alpha=3.9062e-03  L2=4.816423e+04  gs0=-4.051e+13  gts=-4.144e+13  [C1 fail]
+[2026-03-06 18:36:54]     [wolfe 10/12] alpha=1.9531e-03  L2=4.804252e+04  gs0=-4.051e+13  gts=-4.097e+13  [C1 fail]
+[2026-03-06 18:37:17]     [wolfe 11/12] alpha=9.7656e-04  L2=4.798232e+04  gs0=-4.051e+13  gts=-4.074e+13  [C1 fail]
+[2026-03-06 18:37:40]     [wolfe 12/12] alpha=4.8828e-04  L2=4.795239e+04  gs0=-4.051e+13  gts=-4.062e+13  [C1 fail]
+[2026-03-06 18:37:40]     [wolfe] max trials -- using best alpha=0.0000e+00  L2=4.792257e+04
+[2026-03-06 18:37:40]   [L-BFGS] skip curvature update (ys=0.000e+00 too small)
+[2026-03-06 18:37:40]   update: |De|_max=0.000e+00  |Ds|_max=0.000e+00  er=[1.42,7.44]  s=[5.09e-04,9.01e-03]  L2_new=4.792257e+04
+[2026-03-06 18:37:40]   Callback: saving iter 2 images ...
+[2026-03-06 18:37:41]   [Callback] iter 0002: saved model/grad/hess/dir/tikh images  (L2=4.7923e+04)
+[2026-03-06 18:37:41] 
+============================================================
+[2026-03-06 18:37:41] [iter 3/3] Computing adjoint-state gradient  (82 src x 10 freq) ...
+[2026-03-06 18:37:43]     [freq  1/10] 50.0 MHz -- 82 src done  grad/src: e=3.095e+17  s=1.004e+09
+[2026-03-06 18:37:45]     [freq  2/10] 60.0 MHz -- 82 src done  grad/src: e=2.464e+17  s=6.592e+08
+[2026-03-06 18:37:48]     [freq  3/10] 70.0 MHz -- 82 src done  grad/src: e=2.607e+17  s=5.934e+08
+[2026-03-06 18:37:50]     [freq  4/10] 80.0 MHz -- 82 src done  grad/src: e=2.848e+17  s=5.810e+08
+[2026-03-06 18:37:52]     [freq  5/10] 90.0 MHz -- 82 src done  grad/src: e=3.246e+17  s=6.057e+08
+[2026-03-06 18:37:55]     [freq  6/10] 100.0 MHz -- 82 src done  grad/src: e=3.614e+17  s=6.293e+08
+[2026-03-06 18:37:57]     [freq  7/10] 125.0 MHz -- 82 src done  grad/src: e=5.432e+17  s=7.887e+08
+[2026-03-06 18:37:59]     [freq  8/10] 150.0 MHz -- 82 src done  grad/src: e=8.087e+17  s=1.001e+09
+[2026-03-06 18:38:02]     [freq  9/10] 175.0 MHz -- 82 src done  grad/src: e=1.072e+18  s=1.199e+09
+[2026-03-06 18:38:04]     [freq 10/10] 200.0 MHz -- 82 src done  grad/src: e=1.640e+18  s=1.561e+09
+[2026-03-06 18:38:04]   gradient done -- L2=4.792257e+04
+[2026-03-06 18:38:04]   >> L2=4.792257e+04  ratio=1.000e+00
+[2026-03-06 18:38:04]   [Steepest descent] H_max_e=7.493e+43  H_max_s=6.341e+25
+[2026-03-06 18:38:04]   step_e=1.000e+00  step_s=1.000e-03
+[2026-03-06 18:38:27]     [wolfe 1/12] alpha=1.0000e+00  L2=3.184878e+05  gs0=-4.051e+13  gts=-2.559e+14  [C1 fail]
+[2026-03-06 18:38:50]     [wolfe 2/12] alpha=5.0000e-01  L2=1.332515e+05  gs0=-4.051e+13  gts=-1.539e+14  [C1 fail]
+[2026-03-06 18:39:12]     [wolfe 3/12] alpha=2.5000e-01  L2=7.723281e+04  gs0=-4.051e+13  gts=-9.872e+13  [C1 fail]
+[2026-03-06 18:39:35]     [wolfe 4/12] alpha=1.2500e-01  L2=5.910658e+04  gs0=-4.051e+13  gts=-6.997e+13  [C1 fail]
+[2026-03-06 18:39:58]     [wolfe 5/12] alpha=6.2500e-02  L2=5.262945e+04  gs0=-4.051e+13  gts=-5.532e+13  [C1 fail]
+[2026-03-06 18:40:21]     [wolfe 6/12] alpha=3.1250e-02  L2=5.005254e+04  gs0=-4.051e+13  gts=-4.794e+13  [C1 fail]
+[2026-03-06 18:40:44]     [wolfe 7/12] alpha=1.5625e-02  L2=4.893142e+04  gs0=-4.051e+13  gts=-4.423e+13  [C1 fail]
+[2026-03-06 18:41:07]     [wolfe 8/12] alpha=7.8125e-03  L2=4.841292e+04  gs0=-4.051e+13  gts=-4.237e+13  [C1 fail]
+[2026-03-06 18:41:29]     [wolfe 9/12] alpha=3.9062e-03  L2=4.816423e+04  gs0=-4.051e+13  gts=-4.144e+13  [C1 fail]
+[2026-03-06 18:41:52]     [wolfe 10/12] alpha=1.9531e-03  L2=4.804252e+04  gs0=-4.051e+13  gts=-4.097e+13  [C1 fail]
+[2026-03-06 18:42:15]     [wolfe 11/12] alpha=9.7656e-04  L2=4.798232e+04  gs0=-4.051e+13  gts=-4.074e+13  [C1 fail]
+[2026-03-06 18:42:37]     [wolfe 12/12] alpha=4.8828e-04  L2=4.795239e+04  gs0=-4.051e+13  gts=-4.062e+13  [C1 fail]
+[2026-03-06 18:42:37]     [wolfe] max trials -- using best alpha=0.0000e+00  L2=4.792257e+04
+[2026-03-06 18:42:37]   [L-BFGS] skip curvature update (ys=0.000e+00 too small)
+[2026-03-06 18:42:37]   update: |De|_max=0.000e+00  |Ds|_max=0.000e+00  er=[1.42,7.44]  s=[5.09e-04,9.01e-03]  L2_new=4.792257e+04
+[2026-03-06 18:42:37]   Callback: saving iter 3 images ...
+[2026-03-06 18:42:38]   [Callback] iter 0003: saved model/grad/hess/dir/tikh images  (L2=4.7923e+04)
+[2026-03-06 18:42:38] 
+Final model  -> results\test_lbfgs\models\final_result.npz
+[2026-03-06 18:42:39] Misfit curve -> results\test_lbfgs\misfit\#Output_L2_ratio_curve.png
+[2026-03-06 18:42:39] Log          -> results\test_lbfgs\logs\run_log.txt
+[2026-03-06 18:42:39] 
+Final L2 : 4.792257e+04
+[2026-03-06 18:42:39] L2 ratio : 1.000e+00
