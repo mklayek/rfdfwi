@@ -68,6 +68,40 @@ GPRFM_FREQS_HZ: list[float] = [
 # Source wavelet spectrum (Blackman-Harris)
 # ---------------------------------------------------------------------------
 
+def ricker_spectrum(freqs: np.ndarray, fc: float = 100e6,
+                    taper_pct: float = 0.15) -> np.ndarray:
+    """
+    Ricker wavelet amplitude spectrum with high-frequency cosine taper.
+
+    Matches Layek & Sengupta (2021): Ricker source with centre frequency fc.
+    In frequency domain the Ricker spectrum is:
+
+        R(f) = (f/fc)^2 * exp(-(f/fc)^2)
+
+    A cosine taper is applied to the last ``taper_pct`` fraction of the
+    frequency array to ensure the spectrum smoothly reaches zero at f_max.
+    This prevents Gibbs ringing (spectral truncation artifacts) in the IFFT.
+
+    Parameters
+    ----------
+    freqs     : (nf,)  Frequency array [Hz].
+    fc        : float  Centre frequency [Hz], default 100 MHz.
+    taper_pct : float  Fraction of high-freq end to taper (default 0.15 = 15%).
+
+    Returns
+    -------
+    spectrum : (nf,)  Ricker amplitude spectrum, tapered to zero at f_max.
+    """
+    f_ratio = freqs / fc
+    spec = f_ratio ** 2 * np.exp(-(f_ratio ** 2))
+    # High-frequency cosine taper to avoid spectral truncation artifacts
+    nf = len(freqs)
+    n_taper = max(1, int(round(nf * taper_pct)))
+    taper = np.ones(nf)
+    taper[-n_taper:] = 0.5 * (1.0 + np.cos(np.pi * np.arange(n_taper) / n_taper))
+    return spec * taper
+
+
 def blackman_harris_spectrum(freqs: np.ndarray) -> np.ndarray:
     """
     4-term Blackman-Harris window evaluated at the actual frequency positions.
@@ -102,7 +136,8 @@ def blackman_harris_spectrum(freqs: np.ndarray) -> np.ndarray:
 # GPRFM processing utilities
 # ---------------------------------------------------------------------------
 
-def agc2(data: np.ndarray, window: int, overlap: int = 0) -> np.ndarray:
+def agc2(data: np.ndarray, window: int, overlap: int = 0,
+         threshold: float = 0.0) -> np.ndarray:
     """
     Sliding-window RMS Automatic Gain Control (matches MATLAB agc2).
 
@@ -115,9 +150,12 @@ def agc2(data: np.ndarray, window: int, overlap: int = 0) -> np.ndarray:
 
     Parameters
     ----------
-    data    : (nt, nx)  Real 2-D array, rows = time, cols = traces.
-    window  : int       Window length [samples].
-    overlap : int       Kept for API compatibility with MATLAB agc2; unused.
+    data      : (nt, nx)  Real 2-D array, rows = time, cols = traces.
+    window    : int       Window length [samples].
+    overlap   : int       Kept for API compatibility with MATLAB agc2; unused.
+    threshold : float     Fraction (0-1) of per-trace max RMS below which gain
+                          is clamped.  Prevents amplifying late-time noise.
+                          0 = no threshold (original behaviour).
 
     Returns
     -------
@@ -127,12 +165,21 @@ def agc2(data: np.ndarray, window: int, overlap: int = 0) -> np.ndarray:
     out       = np.zeros_like(data, dtype=float)
     half_w    = window // 2
 
+    # Compute all RMS values
+    rms_all = np.zeros((nt, nx), dtype=float)
     for i in range(nt):
         i0  = max(0, i - half_w)
         i1  = min(nt, i + half_w + 1)
-        rms = np.sqrt(np.mean(data[i0:i1, :] ** 2, axis=0))
-        rms = np.where(rms > 0.0, rms, 1.0)
-        out[i, :] = data[i, :] / rms
+        rms_all[i, :] = np.sqrt(np.mean(data[i0:i1, :] ** 2, axis=0))
+
+    # Apply threshold: per-trace RMS floor limits maximum gain
+    if threshold > 0.0:
+        rms_max  = rms_all.max(axis=0, keepdims=True)   # (1, nx)
+        rms_floor = threshold * rms_max
+        rms_all   = np.maximum(rms_all, rms_floor)
+
+    rms_all = np.where(rms_all > 0.0, rms_all, 1.0)
+    out     = data / rms_all
 
     return out
 

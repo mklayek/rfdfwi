@@ -1,0 +1,94 @@
+# =============================================================================
+# Marmousi-II GPR model configuration
+# Elastic Marmousi-II converted to GPR parameters (εᵣ, σ)
+# via petrophysical conversion: ρ → φ → εᵣ (CRIM) + σ (Archie)
+#
+# References:
+#   Martin, G.S., Wiley, R. & Marfurt, K.J. (2006). Marmousi2: An elastic
+#   upgrade for Marmousi. The Leading Edge, 25(2), 156-166.
+#
+#   Köhn, D., De Nil, D. and Rabbel, W. (2017) Tutorial: Introduction to
+#   frequency domain modelling and FWI of georadar data with GERMAINE.
+#   DOI: 10.13140/RG.2.2.29354.03523
+#
+# Grid: 300 x 200 (Nx x Nz) with dh = 0.05 m
+# Interior: 280 x 180 cells = 14.0 m x 9.0 m
+# PML: 10 cells per side
+# =============================================================================
+
+# Physical domain: 300x200 cells @ dh=0.05m + 10-cell CFS-PML
+# Total physical: 15.0m (x) x 10.0m (z)
+# Interior: 280x180 cells = 14.0m x 9.0m
+domain:
+  nx: 300
+  nz: 200
+  dx: 0.05    # m
+  dz: 0.05    # m
+
+# CFS-PML
+pml:
+  npx: 10
+  npz: 10
+  a0_cfs: 9.0e8
+
+# Single-frequency for forward run
+freq_hz: 100e6
+
+# Frequency sweep: 80 frequencies from 1 to 200 MHz
+freq_sweep:
+  fc_low:  1e6
+  fc_high: 200e6
+  nf:      80
+  clip:    2.5e-3
+  clip1:   1.0e-2
+  tmax_td: 150e-9
+
+# Source: surface, centre of domain at x = 7.5 m
+# In full-grid coords: ix = 7.5 / 0.05 = 150
+# iz = npml = 10 (ground surface)
+source:
+  ix: 150
+  iz: 10
+
+# Receivers: surface line, every cell across the interior
+receivers:
+  mode: line
+  iz: 10
+  ix_start: 10
+  ix_end: 289
+  ix_step: 1
+
+# Model: Marmousi-II GPR
+# If segy_dir points to a valid directory with Marmousi-II SEGY files,
+# the real elastic-to-GPR conversion is used; otherwise falls back to
+# a synthetic Marmousi-like model with folded layers and a fault.
+model:
+  type: marmousi_gpr
+  # Path to extracted Marmousi-II SEGY files (1.25m grid version)
+  # Downloaded from: https://s3.amazonaws.com/open.source.geoscience/open_data/elastic-marmousi/elastic-marmousi-model.tar.gz
+  segy_dir: elastic-marmousi-model/model
+  # Petrophysical conversion parameters (density in g/cm3 for 1.25m version)
+  rho_matrix: 2.65            # g/cm³  quartz grain density
+  rho_fluid: 1.00             # g/cm³  freshwater
+  eps_matrix: 5.0             # quartz dielectric constant
+  eps_water: 80.0             # freshwater dielectric constant
+  Sw: 1.0                     # water saturation (fully saturated)
+  sigma_fluid: 0.05           # S/m  freshwater conductivity
+  m_cementation: 1.8          # Archie cementation exponent
+  n_saturation: 2.0           # Archie saturation exponent
+  # Target GPR value ranges (Lavoue 2014, Fig. 9)
+  epsr_target_min: 4.0        # dry sand
+  epsr_target_max: 32.0       # saturated clay
+  sigma_target_min: 0.1e-3    # 0.1 mS/m
+  sigma_target_max: 20.0e-3   # 20 mS/m
+
+# Output
+output:
+  dir: results/marmousi_work
+  save_fields: false
+  save_traces: true
+
+# Display settings for radargram / shot gather plots
+display:
+  tmax_ns: 100
+  agc_window_ns: 20

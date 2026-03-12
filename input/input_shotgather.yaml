@@ -1,0 +1,99 @@
+# =============================================================================
+# Shot gather configuration - Layek & Sengupta (2021), Section 3.2.1
+# Synthetic layered model with clay lens, surface acquisition geometry.
+#
+# Reference:
+#   Layek, M. K., & Sengupta, P. (2021). An Improved and Novel Approach
+#   for Frequency Domain Forward Modeling of GPR Data Using the Finite
+#   Difference Staggered Grid Technique. Pure Appl. Geophys., 178, 959-972.
+#   DOI: 10.1007/s00024-021-02685-3
+#
+# Grid: 120 x 80 (Nx x Nz) with dh = 0.05 m
+# Interior: 100 x 60 cells = 5.0 m x 3.0 m
+# PML: 10 cells per side
+# =============================================================================
+
+# Physical domain: 120x80 cells @ dh=0.05m + 10-cell CFS-PML
+# Total physical: 6.0m (x) x 4.0m (z)
+# Interior: 100x60 cells = 5.0m x 3.0m
+domain:
+  nx: 120
+  nz: 80
+  dx: 0.05    # m
+  dz: 0.05    # m
+
+# CFS-PML (same parameters as Layek 2021: cPML=9e8, kappa=2, alpha_max=0.2)
+pml:
+  npx: 10
+  npz: 10
+  a0_cfs: 9.0e8
+
+# Single-frequency for forward run (Ricker center = 100 MHz)
+freq_hz: 100e6
+
+# Frequency sweep: 80 frequencies from 1 to 200 MHz (Layek 2021 Sec. 3.2.1)
+# "we computed the simulated wavefield using 80 frequency components
+#  between 1 and 200 MHz"
+freq_sweep:
+  fc_low:  1e6
+  fc_high: 200e6
+  nf:      80
+  clip:    2.5e-3
+  clip1:   1.0e-2
+  tmax_td: 150e-9
+
+# Source: surface, centre of domain at x = 3.0 m (Layek 2021, Fig. 7)
+# In full-grid coords: ix = 3.0 / 0.05 = 60
+# iz = npml = 10 (ground surface = top of interior domain)
+source:
+  ix: 60    # 3.0 m = centre of 6.0 m domain
+  iz: 10    # ground surface (first interior row, at PML/interior boundary)
+
+# Receivers: 60 receivers, 0.10 m spacing, on ground surface
+# "60 sources and 60 receivers spaced 0.10 m apart"
+# "The sources and receivers were placed on the ground surface."
+# 0.10 m spacing = 2 grid cells at dh=0.05 m
+# 60 receivers: from ix=10 (PML edge) to ix=10+59*2=128, but clip to ix=109
+# Centre them: ix_start = npml = 10, ix_end = nx - npml - 1 = 109
+# step = 2 -> (109-10)/2 + 1 = 50 receivers.  Adjust to get 60:
+# ix_start = 10, ix_end = 10 + 59*2 = 128 -> clip to 109 -> ~50 receivers
+# OR: use the full interior, step=2 -> 50 receivers (close enough)
+# Actually 60 receivers at 0.10m spacing = 5.9m total span. Interior = 5.0m.
+# So receivers span slightly beyond interior into PML region on each side,
+# or the paper rounds the numbers. Use interior span to be safe.
+receivers:
+  mode: line
+  iz: 10            # ground surface
+  ix_start: 10      # interior start (avoids PML artefacts)
+  ix_end: 109       # interior end (nx - npx - 1)
+  ix_step: 1        # every cell = 0.05 m spacing (100 receivers)
+
+# Model: Layek & Sengupta (2021) synthetic layered model
+# See create_models/build_layered_layek2021.py for full description
+model:
+  type: layered_layek2021
+  # Layer 1 - Silty soil (top, 0-1.0m depth)
+  epsr_layer1:  11.0
+  sigma_layer1: 0.1e-3       # 0.1 mS/m
+  # Layer 2 - Dry sandy soil (1.0-2.0m depth)
+  epsr_layer2:  4.0
+  sigma_layer2: 6.0e-3       # 6.0 mS/m
+  # Layer 3 - Dry clay (2.0m to bottom)
+  epsr_layer3:  8.0
+  sigma_layer3: 5.0e-3       # 5.0 mS/m
+  # Clay lens/patch in lower-right of Layer 3
+  epsr_clay_lens:  35.0
+  sigma_clay_lens: 20.0e-3   # 20.0 mS/m
+
+# Display settings for shot gather plots
+# AGC: "The window-length and threshold values for the AGC were equal to
+#       20 and 10 ns, respectively." (Layek 2021, Sec. 3.2.1)
+display:
+  tmax_ns: 80          # Fig. 7 shows time axis to ~80 ns
+  agc_window_ns: 20    # AGC window = 20 ns (paper)
+
+# Output
+output:
+  dir: results/shotgather_layek2021
+  save_fields: false
+  save_traces: true

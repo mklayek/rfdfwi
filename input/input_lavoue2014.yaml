@@ -1,0 +1,86 @@
+# =============================================================================
+# Lavoue (2014) GPR Benchmark Model Configuration
+# Fluvial deposits near Grenoble, France
+#
+# Reference:
+#   Lavoue, F. (2014). 2D full waveform inversion of ground penetrating
+#   radar data. PhD thesis, Universite de Grenoble.
+#   Lavoue et al. (2014). Two-dimensional full-waveform inversion of
+#   ground-penetrating radar data. Geophysics. Figure 9.
+#
+# Grid: 220 x 130 (Nx x Nz) with dh = 0.05 m
+# Interior: 200 x 110 cells = 10.0 m x 5.5 m
+# PML: 10 cells per side
+# Air: 10 cells (0.5 m) above ground surface
+# =============================================================================
+
+domain:
+  nx: 220
+  nz: 130
+  dx: 0.05    # m
+  dz: 0.05    # m
+
+# CFS-PML
+pml:
+  npx: 10
+  npz: 10
+  a0_cfs: 9.0e8
+
+# Single-frequency for forward run
+freq_hz: 100e6
+
+# Frequency sweep: 80 frequencies from 1 to 200 MHz
+freq_sweep:
+  fc_low:  1e6
+  fc_high: 200e6
+  nf:      80
+  clip:    2.5e-3
+  clip1:   1.0e-2
+  tmax_td: 150e-9
+
+# Source: in air, 2 cells above ground (iz=18), centre of domain at x=5.0m
+# Ground surface at iz = npml + 10 = 20
+# Source at iz = 18 (0.1m above ground, in air)
+# ix = npml + nx_int/2 = 10 + 100 = 110 (centre of 10m domain)
+source:
+  ix: 110
+  iz: 18
+
+# Receivers: surface line across interior, in air at iz=18
+# 101 receivers at 0.1m (2 cell) spacing
+receivers:
+  mode: line
+  iz: 18
+  ix_start: 10
+  ix_end: 209
+  ix_step: 2
+
+# Model: Lavoue (2014) benchmark
+model:
+  type: lavoue2014_benchmark
+  # Layer parameters (Lavoue 2014 Fig. 9)
+  epsr_silt: 11.0
+  sigma_silt: 0.1e-3
+  epsr_sand: 4.0
+  sigma_sand: 0.1e-3
+  epsr_thin: 6.0
+  sigma_thin: 6.0e-3
+  epsr_alt_high: 22.0
+  sigma_alt_high: 8.0e-3
+  epsr_alt_low: 4.0
+  sigma_alt_low: 1.0e-3
+  epsr_atten: 18.0
+  sigma_atten: 10.0e-3
+  epsr_clay: 32.0
+  sigma_clay: 20.0e-3
+
+# Output
+output:
+  dir: results/benchmark
+  save_fields: false
+  save_traces: true
+
+# Display settings
+display:
+  tmax_ns: 100
+  agc_window_ns: 20

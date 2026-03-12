@@ -98,7 +98,8 @@ def get_receivers(config: dict[str, Any], nx: int) -> list[tuple[int, int]]:
         iz = int(r.get("iz", 2))
         i_start = int(r.get("ix_start", 0))
         i_end = int(r.get("ix_end", nx - 1))
-        return [(ix, iz) for ix in range(i_start, i_end + 1)]
+        step = int(r.get("ix_step", r.get("step", 1)))
+        return [(ix, iz) for ix in range(i_start, i_end + 1, step)]
     if isinstance(r, list):
         return [(int(p["ix"]), int(p["iz"])) for p in r]
     return [(50, 2)]
@@ -177,7 +178,8 @@ def get_acquisition_receivers(config: dict[str, Any]) -> list[dict[str, int]]:
         iz      = int(rec.get("iz", 20))
         ix_start = int(rec.get("ix_start", 20))
         ix_end   = int(rec.get("ix_end", 179))
-        return [{"ix": ix, "iz": iz} for ix in range(ix_start, ix_end + 1)]
+        step     = int(rec.get("ix_step", rec.get("step", 1)))
+        return [{"ix": ix, "iz": iz} for ix in range(ix_start, ix_end + 1, step)]
     if isinstance(rec, list):
         return [{"ix": int(r["ix"]), "iz": int(r["iz"])} for r in rec]
     return []

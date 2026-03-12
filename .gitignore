@@ -3,6 +3,38 @@ rfdfwimkl/
 
 # Results (large generated files)
 inputmodel/
+results/
+
+# Large data / output files
+*.npz
+*.npy
+*.segy
+*.sgy
+*.tiff
+*.tif
+*.hdf5
+*.h5
+*.tar
+*.tar.gz
+*.gz
+*.zip
+*.pdf
+
+# Large image files (generated figures, reference images)
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.bmp
+
+# External model data
+elastic-marmousi-model/
+elastic-marmousi-model.tar.gz
+
+# Claude Code / plugin / skill files
+.claude/
+docs/superpowers/
+docs/skills-and-agents/
 
 # Python cache
 __pycache__/
