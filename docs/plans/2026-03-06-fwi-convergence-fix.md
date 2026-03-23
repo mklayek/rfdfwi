@@ -1,7 +1,5 @@
 # FWI Convergence Fix — L-BFGS + Wolfe Line Search
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Fix FWI non-convergence by implementing L-BFGS quasi-Newton optimization, Wolfe line search, and gradient scaling to match the MATLAB RFDFWI.m algorithm.
 
 **Architecture:** The Python FWI currently uses preconditioned steepest descent, which converges too slowly for this ill-conditioned multi-parameter (εr, σ) problem. The MATLAB code uses L-BFGS with pseudo-Hessian preconditioning and Wolfe line search, converging in ~50-100 iterations. We will add L-BFGS (memory=5) and Wolfe conditions to `scripts/inversion_fwi.py`, plus gradient scaling that matches the MATLAB convention.

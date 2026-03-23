@@ -317,7 +317,6 @@ rfdfwi/
 ├── README.md
 ├── INSTALLATION.md
 ├── CLI_REFERENCE.md
-└── CLAUDE.md                      Developer notes
 ```
 
 ### Key input files
@@ -1527,4 +1526,4 @@ def run_inversion(
 
 ---
 
-*This manual covers RFDFWI as of March 2026. For developer notes, see `CLAUDE.md`.*
+*This manual covers RFDFWI as of March 2026.*

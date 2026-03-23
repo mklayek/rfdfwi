@@ -31,11 +31,6 @@ results/
 elastic-marmousi-model/
 elastic-marmousi-model.tar.gz
 
-# Claude Code / plugin / skill files
-.claude/
-docs/superpowers/
-docs/skills-and-agents/
-
 # Python cache
 __pycache__/
 *.pyc
@@ -50,4 +45,3 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
-tmpclaude*

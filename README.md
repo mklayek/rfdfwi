@@ -88,8 +88,6 @@ Both must print PASS before trusting any results.
 | [CLI_REFERENCE.md](CLI_REFERENCE.md) | Complete CLI flags for all example scripts, stencil selection, model types, acquisition geometry |
 | [docs/MANUAL.md](docs/MANUAL.md) | Full reference manual: algorithms, YAML config, output file formats, MATLAB correspondence, API |
 | [docs/MATLAB_to_Python_Mapping.md](docs/MATLAB_to_Python_Mapping.md) | Function-level MATLAB -> Python mapping table |
-| [CLAUDE.md](CLAUDE.md) | Developer notes and internal architecture |
-
 > Repository: https://github.com/mklayek/rfdfwi
 
 ---
